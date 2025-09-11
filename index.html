@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Harvest - Business Sim</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const API_BASE_URL = 'http://127.0.0.1:5000';
+
+        function App() {
+            const [status, setStatus] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [salePrices, setSalePrices] = useState({});
+            const [purchaseInputs, setPurchaseInputs] = useState({});
+            const [error, setError] = useState(null);
+
+            const fetchStatus = async () => {
+                setError(null);
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/status`);
+                    if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+                    const data = await response.json();
+                    setStatus(data);
+
+                    const initialSalePrices = {};
+                    const initialPurchaseInputs = {};
+                    data.inventory.forEach(item => {
+                        if (item.last_sale_price) {
+                            initialSalePrices[item.product_id] = item.last_sale_price;
+                        }
+                        // Initialize with existing values or set defaults
+                        initialPurchaseInputs[item.product_id] = {
+                            qty: purchaseInputs[item.product_id]?.qty || '', // Preserve typed quantity on refresh
+                            price: purchaseInputs[item.product_id]?.price || item.last_purchase_price || '' // Preserve typed price, fallback to last price
+                        };
+                    });
+                    setSalePrices(initialSalePrices);
+                    setPurchaseInputs(initialPurchaseInputs);
+
+                } catch (error) {
+                    console.error("Failed to fetch status:", error);
+                    setError(error.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchStatus();
+            }, []);
+
+            const handleSalePriceChange = (productId, price) => {
+                setSalePrices(prev => ({ ...prev, [productId]: parseFloat(price) || 0 }));
+            };
+            
+            const handlePurchaseInputChange = (productId, field, value) => {
+                setPurchaseInputs(prev => ({
+                    ...prev,
+                    [productId]: { ...prev[productId], [field]: value }
+                }));
+            };
+
+            const handleAdvanceTime = async () => {
+                const days = parseInt(prompt("How many days to simulate?", "7"));
+                if (isNaN(days) || days <= 0) return;
+
+                setLoading(true);
+                await fetch(`${API_BASE_URL}/api/advance_time`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days, prices: salePrices })
+                });
+                await fetchStatus();
+            };
+            
+            const handlePurchase = async (productId) => {
+                const inputs = purchaseInputs[productId];
+                const quantity = parseInt(inputs.qty, 10);
+                const unitCost = parseFloat(inputs.price);
+
+                if (isNaN(quantity) || quantity <= 0) {
+                    alert("Please enter a valid quantity to purchase.");
+                    return;
+                }
+                if (isNaN(unitCost) || unitCost < 0) {
+                    alert("Please enter a valid purchase price.");
+                    return;
+                }
+
+                const totalCost = quantity * unitCost;
+                const confirmation = window.confirm(
+                    `Are you sure you want to purchase ${quantity} units for a total of $${totalCost.toFixed(2)}?`
+                );
+
+                if (confirmation) {
+                    setLoading(true);
+                    await fetch(`${API_BASE_URL}/api/purchase`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ product_id: productId, quantity, unit_cost: unitCost })
+                    });
+                    await fetchStatus();
+                }
+            };
+
+            const handleKeyDownPurchase = (event, productId) => {
+                if (event.key === 'Enter') {
+                    handlePurchase(productId);
+                }
+            };
+
+            if (error) {
+                return (
+                    <div className="container mx-auto p-4 max-w-2xl mt-10">
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-md" role="alert">
+                            <strong className="font-bold text-lg">Connection Error!</strong>
+                            <p className="block sm:inline mt-2">Failed to load simulation data. Please ensure the Python API server (`api.py`) is running and there are no errors.</p>
+                            <div className="mt-4 bg-red-50 p-2 border border-red-200 rounded">
+                                <p className="font-mono text-sm"><strong>Details:</strong> {error}</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (loading && !status) return <div className="text-center p-8">Loading Simulation...</div>;
+            if (!status) return null;
+
+            return (
+                <div className="container mx-auto p-4 max-w-7xl">
+                    <header className="bg-white shadow rounded-lg p-4 mb-6">
+                        <h1 className="text-3xl font-bold text-gray-900">Digital Harvest Dashboard</h1>
+                        <div className="flex justify-between items-center mt-2 text-lg">
+                            <div><strong>Date:</strong> {status.date}</div>
+                            <div><strong>Cash on Hand:</strong> <span className="text-green-600 font-semibold">${status.cash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                        </div>
+                    </header>
+
+                    <div className="bg-white shadow rounded-lg p-4">
+                        <h2 className="text-2xl font-semibold mb-4">Inventory Management</h2>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Cost</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Set Sale Price ($)</th>
+                                        <th className="w-24 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Qty</th>
+                                        <th className="w-32 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Price ($)</th>
+                                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-bold">Total Cost</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {status.inventory.map(item => {
+                                        const qty = parseFloat(purchaseInputs[item.product_id]?.qty) || 0;
+                                        const price = parseFloat(purchaseInputs[item.product_id]?.price) || 0;
+                                        const totalCost = qty * price;
+
+                                        return (
+                                            <tr key={item.product_id}>
+                                                <td className="px-4 py-4 whitespace-nowrap">{item.name}</td>
+                                                <td className="px-2 py-4 whitespace-nowrap text-center">{item.stock}</td>
+                                                <td className="px-2 py-4 whitespace-nowrap text-center">${item.avg_cost.toFixed(2)}</td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <input 
+                                                        type="number" step="0.01" placeholder="Enter sale price"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                        value={salePrices[item.product_id] || ''}
+                                                        onChange={(e) => handleSalePriceChange(item.product_id, e.target.value)}
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-4 whitespace-nowrap">
+                                                    <input 
+                                                        type="number" placeholder="Qty"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                        value={purchaseInputs[item.product_id]?.qty || ''}
+                                                        onChange={(e) => handlePurchaseInputChange(item.product_id, 'qty', e.target.value)}
+                                                        onKeyDown={(e) => handleKeyDownPurchase(e, item.product_id)}
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-4 whitespace-nowrap">
+                                                    <input 
+                                                        type="number" step="0.01" placeholder="Cost"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                        value={purchaseInputs[item.product_id]?.price || ''}
+                                                        onChange={(e) => handlePurchaseInputChange(item.product_id, 'price', e.target.value)}
+                                                        onKeyDown={(e) => handleKeyDownPurchase(e, item.product_id)}
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-4 whitespace-nowrap font-semibold text-center">
+                                                    ${totalCost.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <button 
+                                                        onClick={() => handlePurchase(item.product_id)}
+                                                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                                                    >
+                                                        Purchase
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-6 flex justify-end">
+                            <button 
+                                onClick={handleAdvanceTime}
+                                className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-lg"
+                                disabled={loading}
+                            >
+                                {loading ? 'Simulating...' : 'Advance Time'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
