@@ -91,7 +91,7 @@ pip install -r requirements.txt
 ### 3. Initialize the Database
 Run the setup script **once** from your terminal. This will create the `digital_harvest` database, build the required tables, and populate the initial product catalog.
 ```bash
-python src/setup_business.py
+python src_v2/setup_v2.py
 ```
 
 *Note: This script will completely drop and recreate the database each time it is run.*
@@ -109,7 +109,7 @@ You can run either the Web UI or the Terminal version.
 **To use the Web UI v1:**
 1. Start the backend API server:
    ```bash
-   python src_v1/api_v1.py
+   python src_v2/api_v2.py
    ```
 2. Open the `index_v1.html` file in your web browser.
 
@@ -130,14 +130,16 @@ python src_v2/cli_v2.py
 
 ```
 digital-harvest/
-├── src_v1/           # Original implementation
+├── src/              # Original implementation
+├── src_v1/           # First new version
 ├── src_v2/           # Enhanced v2 implementation (recommended)
 │   ├── engine_v2.py  # Core business simulation engine
 │   ├── api_v2.py     # Flask REST API
 │   ├── cli_v2.py     # Terminal interface
 │   └── setup_v2.py   # Database initialization
-├── index_v1.html     # Basic web interface
-├── index_v2.html     # Enhanced web interface (recommended)
+├── index.html        # Simple working model
+├── index_v1.html     # Basic web interface with expenses
+├── index_v2.html     # Enhanced web interface with dashboard (recommended)
 └── screenshots/      # Dashboard examples
 ```
 
