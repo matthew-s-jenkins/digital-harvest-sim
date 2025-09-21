@@ -8,7 +8,7 @@ from decimal import Decimal
 DB_CONFIG = {
     'user': 'root',
     'password': 'Hecther',
-    'host': 'Yoga-Master',
+    'host': 'localhost',
     'port': 3306,
     'database': 'digital_harvest_v2'
 }
@@ -312,8 +312,8 @@ class BusinessSimulator:
 
     def get_loan_offers(self):
         principal = Decimal("50000.00")
-        annual_rate = Decimal("0.08")
-        years = 2
+        annual_rate = Decimal("0.06")
+        years = 3
         num_payments = years * 12
         monthly_rate = annual_rate / 12
         if monthly_rate > 0:
@@ -356,9 +356,9 @@ class BusinessSimulator:
 
     def get_campaign_offers(self):
         return [
-            {'id': 1, 'name': 'Product Blitz', 'cost': 500.00, 'duration_days': 7, 'boost': 1.5, 'target_type': 'PRODUCT', 'description': 'Target a single product with a +50% demand boost for 7 days.'},
-            {'id': 2, 'name': 'Category Push', 'cost': 2000.00, 'duration_days': 14, 'boost': 1.3, 'target_type': 'CATEGORY', 'description': 'Boost an entire product category by +30% for 14 days.'},
-            {'id': 3, 'name': 'Holiday Sale', 'cost': 7500.00, 'duration_days': 30, 'boost': 1.25, 'target_type': 'ALL', 'description': 'Boost demand for ALL products by +25% for 30 days.'},
+            {'id': 1, 'name': 'Product Blitz', 'cost': 350.00, 'duration_days': 7, 'boost': 1.5, 'target_type': 'PRODUCT', 'description': 'Target a single product with a +50% demand boost for 7 days.'},
+            {'id': 2, 'name': 'Category Push', 'cost': 1200.00, 'duration_days': 14, 'boost': 1.3, 'target_type': 'CATEGORY', 'description': 'Boost an entire product category by +30% for 14 days.'},
+            {'id': 3, 'name': 'Holiday Sale', 'cost': 4500.00, 'duration_days': 30, 'boost': 1.25, 'target_type': 'ALL', 'description': 'Boost demand for ALL products by +25% for 30 days.'},
         ]
 
     def get_campaign_targets(self):
@@ -379,6 +379,57 @@ class BusinessSimulator:
         cursor.close()
         conn.close()
         return active_campaigns
+
+    def get_upcoming_bills(self):
+        conn, cursor = self._get_db_connection()
+        query = """
+            SELECT v.name as vendor_name, ap.amount_due, ap.due_date
+            FROM accounts_payable ap
+            JOIN vendors v ON ap.vendor_id = v.vendor_id
+            WHERE ap.status = 'UNPAID' AND ap.due_date IS NOT NULL
+            AND ap.due_date <= DATE_ADD(%s, INTERVAL 30 DAY)
+            ORDER BY ap.due_date ASC
+        """
+        cursor.execute(query, (self.current_date.date(),))
+        bills = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return bills
+
+    def get_all_bills(self):
+        conn, cursor = self._get_db_connection()
+        query = """
+            SELECT v.name as vendor_name, ap.amount_due, ap.due_date
+            FROM accounts_payable ap
+            JOIN vendors v ON ap.vendor_id = v.vendor_id
+            WHERE ap.status = 'UNPAID' AND ap.due_date IS NOT NULL
+            ORDER BY ap.due_date ASC
+        """
+        cursor.execute(query)
+        bills = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return bills
+    
+    def get_open_purchase_orders(self):
+        conn, cursor = self._get_db_connection()
+        query = """
+            SELECT 
+                po.order_id,
+                v.name as vendor_name,
+                po.expected_arrival_date,
+                ap.amount_due
+            FROM purchase_orders po
+            JOIN vendors v ON po.vendor_id = v.vendor_id
+            JOIN accounts_payable ap ON po.order_id = ap.purchase_order_id
+            WHERE po.status IN ('PENDING', 'IN_TRANSIT', 'DELAYED')
+            ORDER BY po.expected_arrival_date ASC
+        """
+        cursor.execute(query)
+        orders = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return orders
 
     def launch_campaign(self, offer_id, target_id=None):
         offers = self.get_campaign_offers()
@@ -427,32 +478,50 @@ class BusinessSimulator:
         try:
             cursor.execute("SELECT * FROM vendors WHERE vendor_id = %s", (vendor_id,))
             vendor = cursor.fetchone()
-            if not vendor: return False
+            if not vendor: return False, "Failed to find vendor."
             subtotal = Decimal('0.0')
             line_items = []
             for product_id, quantity in items.items():
                 unit_cost = self._get_unit_cost(vendor_id, product_id, quantity)
-                if unit_cost is None: return False
-                subtotal += unit_cost * quantity
-                line_items.append({'product_id': product_id, 'quantity': quantity, 'unit_cost': unit_cost})
-            if subtotal < vendor['minimum_order_value']: return False
+                if unit_cost is None: return False, "Could not determine unit cost for an item."
+                item_subtotal = unit_cost * quantity
+                subtotal += item_subtotal
+                line_items.append({'product_id': product_id, 'quantity': quantity, 'unit_cost': unit_cost, 'item_subtotal': item_subtotal})
+            
+            if subtotal < vendor['minimum_order_value']: return False, "Order subtotal is below vendor's minimum."
+            
             shipping_cost = self.calculate_shipping_preview(vendor_id, subtotal)
             grand_total = subtotal + Decimal(shipping_cost)
+            
+            # Allocate shipping cost proportionally to each item
+            for item in line_items:
+                if subtotal > 0:
+                    shipping_allocation = (item['item_subtotal'] / subtotal) * Decimal(shipping_cost)
+                    item['allocated_unit_cost'] = item['unit_cost'] + (shipping_allocation / item['quantity'])
+                else:
+                    item['allocated_unit_cost'] = item['unit_cost']
+            
             order_date = self.current_date
-            expected_arrival = order_date + datetime.timedelta(days=vendor['base_lead_time_days'])
+            expected_arrival = self._add_business_days(order_date, vendor['base_lead_time_days'])
+            
             po_query = "INSERT INTO purchase_orders (vendor_id, order_date, expected_arrival_date, status) VALUES (%s, %s, %s, 'PENDING')"
             cursor.execute(po_query, (vendor_id, order_date, expected_arrival))
             order_id = cursor.lastrowid
+            
             poi_query = "INSERT INTO purchase_order_items (order_id, product_id, quantity, unit_cost) VALUES (%s, %s, %s, %s)"
             for item in line_items:
-                cursor.execute(poi_query, (order_id, item['product_id'], item['quantity'], item['unit_cost']))
+                # Store the allocated unit cost (including shipping) in purchase_order_items
+                cursor.execute(poi_query, (order_id, item['product_id'], item['quantity'], item['allocated_unit_cost']))
+            
             ap_query = ("INSERT INTO accounts_payable (purchase_order_id, vendor_id, amount_due, creation_date, due_date, status) "
                         "VALUES (%s, %s, %s, %s, NULL, 'UNPAID')")
             cursor.execute(ap_query, (order_id, vendor_id, grand_total, order_date))
+            
             uuid = f"po-{order_id}"
             fin_query = "INSERT INTO financial_ledger (transaction_uuid, transaction_date, account, description, debit, credit) VALUES (%s, %s, %s, %s, %s, %s)"
             cursor.execute(fin_query, (uuid, self.current_date, 'Inventory', f'Goods for PO #{order_id}', grand_total, 0))
             cursor.execute(fin_query, (uuid, self.current_date, 'Accounts Payable', f'Liability for PO #{order_id}', 0, grand_total))
+            
             for product_id, quantity in items.items():
                 cursor.execute("SELECT manufacturer_id FROM products WHERE product_id = %s", (product_id,))
                 result = cursor.fetchone()
@@ -460,34 +529,40 @@ class BusinessSimulator:
                     manu_id = result['manufacturer_id']
                     if manu_id != vendor_id:
                         cursor.execute("UPDATE vendors SET relationship_score = relationship_score + 1 WHERE vendor_id = %s", (manu_id,))
+
             cursor.execute("UPDATE vendors SET relationship_score = relationship_score + 2 WHERE vendor_id = %s", (vendor_id,))
+            
             conn.commit()
             print(f"SUCCESS: PO #{order_id} placed for ${grand_total:,.2f}. Bill will be due after delivery.")
-            return True
+            return True, "Order placed successfully."
         except Exception as e:
             conn.rollback()
             print(f"Error in place_order: {e}")
-            return False
+            return False, f"An internal error occurred: {e}"
         finally:
             cursor.close(); conn.close()
 
     def advance_time(self, days_to_advance=1):
-        print(f"\n advancing simulation by {days_to_advance} day(s)...")
+        log_messages = []
         newly_unlocked = []
+
         for i in range(days_to_advance):
-            self._check_for_arrivals()
+            log_messages.extend(self._check_for_arrivals())
             self._process_sales()
-            self._apply_recurring_expenses()
-            self._process_ap_payments()
-            self._process_loan_payments()
-            self._process_market_events()
-            unlocked_messages = self._check_for_unlocks()
-            newly_unlocked.extend(unlocked_messages)
+            log_messages.extend(self._apply_recurring_expenses())
+            log_messages.extend(self._process_ap_payments())
+            log_messages.extend(self._process_loan_payments())
+            log_messages.extend(self._process_market_events())
+            
+            unlocked_info = self._check_for_unlocks()
+            newly_unlocked.extend(unlocked_info['unlocked_products'])
+            log_messages.extend(unlocked_info['messages'])
+            
             self.current_date += datetime.timedelta(days=1)
-            print(f"  -> Day advanced to {self.current_date.date()}")
+        
         self._save_state()
         print("✅ Simulation advance complete.")
-        return {'newly_unlocked': newly_unlocked}
+        return {'newly_unlocked': newly_unlocked, 'log': log_messages}
 
     def _process_sales(self):
         conn, cursor = self._get_db_connection()
@@ -499,8 +574,6 @@ class BusinessSimulator:
         cursor.execute(query)
         products = cursor.fetchall()
         
-        print(f"  -> Processing sales for {len(products)} unlocked products...")
-        
         days_since_start = (self.current_date - self.simulation_start_date).days
         years_since_start = days_since_start / 365.25
         trend_factor = Decimal(1.10) ** Decimal(years_since_start)
@@ -509,16 +582,9 @@ class BusinessSimulator:
         weekday = self.current_date.weekday()
         weekly_factor = [Decimal('0.9'), Decimal('0.95'), Decimal('1.0'), Decimal('1.1'), Decimal('1.4'), Decimal('1.5'), Decimal('1.2')][weekday]
         
-        total_sales_today = 0
-        total_revenue_today = 0
-        
         for prod in products:
             stock = self._get_current_stock(prod['product_id'])
-            print(f"    Product {prod['product_id']}: stock={stock}")
-            
-            if stock <= 0: 
-                print(f"    -> Skipping (no stock)")
-                continue
+            if stock <= 0: continue
             
             final_boost = Decimal("1.0")
             campaign_query = ("SELECT demand_boost_multiplier FROM marketing_campaigns "
@@ -553,14 +619,8 @@ class BusinessSimulator:
             calculated_demand = round(adjusted_demand * Decimal(random.uniform(0.9, 1.1)))
             units_sold = min(calculated_demand, stock)
             
-            print(f"    -> Calculated demand: {calculated_demand}, Units sold: {units_sold}")
-            
             if units_sold > 0:
                 revenue = units_sold * prod['current_selling_price']
-                total_sales_today += units_sold
-                total_revenue_today += revenue
-                print(f"    -> SALE: {units_sold} units for ${revenue}")
-                
                 self.cash += revenue
                 new_stock = stock - int(units_sold)
                 uuid = f"sale-{self.current_date.date()}-{prod['product_id']}"
@@ -582,17 +642,18 @@ class BusinessSimulator:
                 cursor.execute(fin_query, (uuid, self.current_date, 'COGS', 'Cost for sale', cost_of_goods_sold, 0))
                 cursor.execute(fin_query, (uuid, self.current_date, 'Inventory', 'Cost for sale', 0, cost_of_goods_sold))
         
-        print(f"  -> Total sales today: {total_sales_today} units, ${total_revenue_today} revenue")
         conn.commit()
         cursor.close()
         conn.close()
 
     def _process_ap_payments(self):
+        logs = []
         conn, cursor = self._get_db_connection()
         query = "SELECT * FROM accounts_payable WHERE status = 'UNPAID' AND due_date IS NOT NULL AND due_date <= %s"
         cursor.execute(query, (self.current_date,))
         due_bills = cursor.fetchall()
-        if not due_bills: cursor.close(); conn.close(); return
+        if not due_bills: 
+            cursor.close(); conn.close(); return logs
         for bill in due_bills:
             amount = bill['amount_due']
             if self.cash >= amount:
@@ -603,14 +664,16 @@ class BusinessSimulator:
                 fin_query = "INSERT INTO financial_ledger (transaction_uuid, transaction_date, account, description, debit, credit) VALUES (%s, %s, %s, %s, %s, %s)"
                 cursor.execute(fin_query, (uuid, self.current_date, 'Accounts Payable', f'Payment for PO #{bill["purchase_order_id"]}', amount, 0))
                 cursor.execute(fin_query, (uuid, self.current_date, 'Cash', f'Payment for PO #{bill["purchase_order_id"]}', 0, amount))
-                print(f"  -> 💸 Payment of ${amount:,.2f} made for PO #{bill['purchase_order_id']}")
+                logs.append(f"💸 Payment of ${amount:,.2f} made for PO #{bill['purchase_order_id']}.")
             else:
-                print(f"  -> 🚨 WARNING: Payment for PO #{bill['purchase_order_id']} of ${amount:,.2f} is due, but you have insufficient cash!")
+                logs.append(f"🚨 WARNING: Payment for PO #{bill['purchase_order_id']} of ${amount:,.2f} is due, but you have insufficient cash!")
         conn.commit()
         cursor.close()
         conn.close()
+        return logs
 
     def _process_loan_payments(self):
+        logs = []
         conn, cursor = self._get_db_connection()
         query = "SELECT * FROM loans WHERE status = 'ACTIVE' AND next_payment_date <= %s"
         cursor.execute(query, (self.current_date.date(),))
@@ -618,7 +681,7 @@ class BusinessSimulator:
         for loan in due_loans:
             payment = loan['monthly_payment']
             if self.cash < payment:
-                print(f"  -> 🚨 LOAN PAYMENT FAILED! Insufficient cash for loan #{loan['loan_id']}.")
+                logs.append(f"🚨 LOAN PAYMENT FAILED! Insufficient cash for loan #{loan['loan_id']}.")
                 continue
             self.cash -= payment
             monthly_interest_rate = loan['interest_rate'] / 12
@@ -634,56 +697,77 @@ class BusinessSimulator:
             status = 'ACTIVE'
             if new_balance <= 0:
                 new_balance = Decimal('0.00'); status = 'PAID'
-                print(f"  -> 🎉 Loan #{loan['loan_id']} has been fully paid off!")
+                logs.append(f"🎉 Loan #{loan['loan_id']} has been fully paid off!")
             update_query = "UPDATE loans SET outstanding_balance = %s, next_payment_date = %s, status = %s WHERE loan_id = %s"
             cursor.execute(update_query, (new_balance, next_payment_date, status, loan['loan_id']))
-            print(f"  -> 💸 Loan payment of ${payment:,.2f} made. New balance: ${new_balance:,.2f}.")
+            logs.append(f"💸 Loan payment of ${payment:,.2f} made. New balance: ${new_balance:,.2f}.")
         conn.commit()
         cursor.close()
         conn.close()
+        return logs
 
     def _check_for_arrivals(self):
+        logs = []
         conn, cursor = self._get_db_connection()
         query = ("SELECT po.*, v.reliability_score, v.name as vendor_name, v.payment_terms "
                  "FROM purchase_orders po JOIN vendors v ON po.vendor_id = v.vendor_id "
                  "WHERE po.expected_arrival_date <= %s AND po.status IN ('PENDING', 'DELAYED')")
         cursor.execute(query, (self.current_date,))
         arriving_orders = cursor.fetchall()
-        if not arriving_orders: cursor.close(); conn.close(); return
+        
+        if not arriving_orders:
+            cursor.close()
+            conn.close()
+            return logs
+
         for order in arriving_orders:
-            if order['status'] == 'PENDING':
-                is_delayed = random.random() > order['reliability_score']
-                if is_delayed:
-                    delay_duration = random.randint(3, 10)
-                    new_arrival_date = order['expected_arrival_date'] + datetime.timedelta(days=delay_duration)
-                    update_query = "UPDATE purchase_orders SET status = 'DELAYED', expected_arrival_date = %s WHERE order_id = %s"
-                    cursor.execute(update_query, (new_arrival_date, order['order_id']))
-                    print(f"  -> ❗ PO #{order['order_id']} from {order['vendor_name']} has been delayed! New ETA: {new_arrival_date.date()}")
-                    continue
-            print(f"  -> 📦 Shipment for PO #{order['order_id']} from {order['vendor_name']} has arrived!")
-            try: days_to_pay = int(order['payment_terms'].split(' ')[1])
-            except (ValueError, IndexError): days_to_pay = 30
-            due_date = self.current_date + datetime.timedelta(days=days_to_pay)
-            ap_update_query = "UPDATE accounts_payable SET due_date = %s WHERE purchase_order_id = %s"
-            cursor.execute(ap_update_query, (due_date, order['order_id']))
-            print(f"  -> 💲 Bill for PO #{order['order_id']} is now due on {due_date.date()}.")
-            items_query = "SELECT * FROM purchase_order_items WHERE order_id = %s"
-            cursor.execute(items_query, (order['order_id'],))
-            items = cursor.fetchall()
-            for item in items:
-                current_stock = self._get_current_stock(item['product_id'])
-                new_stock = current_stock + item['quantity']
-                inv_query = ("INSERT INTO inventory_ledger (transaction_uuid, transaction_date, product_id, type, description, "
-                             "quantity_change, unit_cost, total_value, quantity_on_hand_after) "
-                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)")
-                cursor.execute(inv_query, (str(order['order_id']), self.current_date, item['product_id'], 'Purchase', f"PO #{order['order_id']} arrived", item['quantity'], item['unit_cost'], 0, new_stock))
-            update_po_query = "UPDATE purchase_orders SET status = 'DELIVERED', actual_arrival_date = %s WHERE order_id = %s"
-            cursor.execute(update_po_query, (self.current_date, order['order_id']))
+            # First, check if a PENDING order should become delayed
+            is_newly_delayed = False
+            if order['status'] == 'PENDING' and random.random() > order['reliability_score']:
+                is_newly_delayed = True
+            
+            if is_newly_delayed:
+                # If it's newly delayed, update its status and new ETA, then skip delivery for this turn
+                delay_duration = random.randint(3, 10)
+                new_arrival_date = self._add_business_days(order['expected_arrival_date'], delay_duration)
+                update_query = "UPDATE purchase_orders SET status = 'DELAYED', expected_arrival_date = %s WHERE order_id = %s"
+                cursor.execute(update_query, (new_arrival_date, order['order_id']))
+                logs.append(f"❗ PO #{order['order_id']} from {order['vendor_name']} has been delayed! New ETA: {new_arrival_date.date()}")
+            else:
+                # If the order is NOT newly delayed, it's ready for delivery.
+                # This correctly handles both on-time PENDING orders and previously DELAYED orders.
+                logs.append(f"📦 PO #{order['order_id']} from {order['vendor_name']} has arrived!")
+                
+                # Calculate due_date based on vendor payment terms
+                import re
+                payment_days = re.search(r'\d+', order['payment_terms'])
+                days = int(payment_days.group()) if payment_days else 30
+                due_date = self.current_date + datetime.timedelta(days=days)
+                ap_update_query = "UPDATE accounts_payable SET due_date = %s WHERE purchase_order_id = %s"
+                cursor.execute(ap_update_query, (due_date, order['order_id']))
+                
+                items_query = "SELECT * FROM purchase_order_items WHERE order_id = %s"
+                cursor.execute(items_query, (order['order_id'],))
+                items = cursor.fetchall()
+                for item in items:
+                    current_stock = self._get_current_stock(item['product_id'])
+                    new_stock = current_stock + item['quantity']
+                    inv_query = ("INSERT INTO inventory_ledger (transaction_uuid, transaction_date, product_id, type, description, "
+                                 "quantity_change, unit_cost, total_value, quantity_on_hand_after) "
+                                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)")
+                    total_item_value = item['quantity'] * item['unit_cost']
+                    cursor.execute(inv_query, (str(order['order_id']), self.current_date, item['product_id'], 'Purchase', f"PO #{order['order_id']} arrived", item['quantity'], item['unit_cost'], total_item_value, new_stock))
+                update_po_query = "UPDATE purchase_orders SET status = 'DELIVERED', actual_arrival_date = %s WHERE order_id = %s"
+                cursor.execute(update_po_query, (self.current_date, order['order_id']))
+        
+        # --- IMPORTANT: Save all the changes to the database ---
         conn.commit()
         cursor.close()
         conn.close()
+        return logs
 
     def _apply_recurring_expenses(self):
+        logs = []
         conn, cursor = self._get_db_connection()
         query = "SELECT * FROM recurring_expenses WHERE last_processed_date IS NULL OR last_processed_date < %s"
         cursor.execute(query, (self.current_date.date(),))
@@ -701,14 +785,16 @@ class BusinessSimulator:
                 cursor.execute(fin_query, (uuid, self.current_date, exp['account'], exp['description'], exp['amount'], 0))
                 cursor.execute(fin_query, (uuid, self.current_date, 'Cash', exp['description'], 0, exp['amount']))
                 cursor.execute("UPDATE recurring_expenses SET last_processed_date = %s WHERE expense_id = %s", (today, exp['expense_id']))
-                print(f"  -> 💸 Paid recurring expense: {exp['description']} (${exp['amount']})")
+                logs.append(f"💸 Paid recurring expense: {exp['description']} (${exp['amount']})")
             elif process and self.cash < exp['amount']:
-                print(f"  -> 🚨 WARNING: Could not pay recurring expense {exp['description']} due to insufficient cash.")
+                logs.append(f"🚨 WARNING: Could not pay recurring expense {exp['description']} due to insufficient cash.")
         conn.commit()
         cursor.close()
         conn.close()
+        return logs
 
     def _process_market_events(self):
+        logs = []
         if random.random() < 0.04:
             conn, cursor = self._get_db_connection()
             event_template = random.choice(self.event_templates)
@@ -716,9 +802,8 @@ class BusinessSimulator:
             end_date = start_date + datetime.timedelta(days=event_template['duration'])
             cursor.execute("SELECT event_id FROM market_events WHERE end_date >= %s AND name = %s", (start_date, event_template['name']))
             if cursor.fetchone():
-                cursor.close()
-                conn.close()
-                return
+                cursor.close(); conn.close()
+                return logs
             query = ("INSERT INTO market_events (name, description, start_date, end_date, demand_boost_multiplier, "
                      "target_switch_type, target_switch_feel, target_sound_profile) "
                      "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
@@ -729,67 +814,59 @@ class BusinessSimulator:
                 event_template['metrics'].get('target_sound_profile')
             ))
             conn.commit()
-            print(f"  -> 🌟 NEW MARKET EVENT: {event_template['name']}")
+            logs.append(f"🌟 NEW MARKET EVENT: {event_template['name']}")
             cursor.close()
             conn.close()
+        return logs
 
     def _check_for_unlocks(self):
-        conn, cursor = self._get_db_connection()
         messages = []
+        unlocked_products = []
+        conn, cursor = self._get_db_connection()
         cursor.execute("SELECT SUM(credit) as total_rev FROM financial_ledger WHERE account = 'Sales Revenue'")
         result = cursor.fetchone()
         total_revenue = result['total_rev'] if result and result['total_rev'] else 0
-        locked_products_query = "SELECT product_id FROM products WHERE status = 'LOCKED'"
+        locked_products_query = "SELECT product_id, name FROM products WHERE status = 'LOCKED'"
         cursor.execute(locked_products_query)
-        locked_product_ids = {row['product_id'] for row in cursor.fetchall()}
+        locked_products = {row['product_id']: row['name'] for row in cursor.fetchall()}
+        
         for unlockable in self.unlockables:
-            if unlockable['type'] == 'product' and unlockable['id'] in locked_product_ids:
+            if unlockable['type'] == 'product' and unlockable['id'] in locked_products:
                 if unlockable['condition_type'] == 'total_revenue' and total_revenue >= unlockable['value']:
                     update_query = "UPDATE products SET status = 'UNLOCKED' WHERE product_id = %s"
                     cursor.execute(update_query, (unlockable['id'],))
-                    messages.append(unlockable['message'])
-                    print(f"  ->  unlocked: {unlockable['message']}")
+                    messages.append(f"🎉 UNLOCKED: {unlockable['message']}")
+                    unlocked_products.append(locked_products[unlockable['id']])
+
         conn.commit()
         cursor.close()
         conn.close()
-        return messages
+        return {'messages': messages, 'unlocked_products': unlocked_products}
 
-    def get_performance_metrics(self):
+    def verify_books_balance(self):
+        """Verify that total debits equal total credits"""
         conn, cursor = self._get_db_connection()
-        
-        # Daily sales trend (last 30 days)
-        cursor.execute("""
-            SELECT DATE(transaction_date) as date, 
-                   SUM(ABS(quantity_change)) as units_sold,
-                   SUM(total_value) as revenue
-            FROM inventory_ledger 
-            WHERE type = 'Sale' AND transaction_date >= %s
-            GROUP BY DATE(transaction_date)
-            ORDER BY date DESC
-        """, (self.current_date - datetime.timedelta(days=30),))
-        
-        daily_performance = cursor.fetchall()
-        
-        # Inventory turnover by product
-        cursor.execute("""
-            SELECT p.name, 
-                   SUM(ABS(il.quantity_change)) as total_sold_30d,
-                   AVG(stock.current_stock) as avg_stock
-            FROM inventory_ledger il
-            JOIN products p ON il.product_id = p.product_id
-            JOIN (SELECT product_id, quantity_on_hand_after as current_stock 
-                  FROM inventory_ledger il2 
-                  WHERE entry_id = (SELECT MAX(entry_id) FROM inventory_ledger il3 WHERE il2.product_id = il3.product_id)) stock 
-                  ON p.product_id = stock.product_id
-            WHERE il.type = 'Sale' AND il.transaction_date >= %s
-            GROUP BY p.product_id, p.name
-        """, (self.current_date - datetime.timedelta(days=30),))
-        
-        turnover_data = cursor.fetchall()
+        query = "SELECT SUM(debit) as total_debits, SUM(credit) as total_credits FROM financial_ledger"
+        cursor.execute(query)
+        result = cursor.fetchone()
         cursor.close()
         conn.close()
         
-        return {
-            'daily_performance': daily_performance,
-            'inventory_turnover': turnover_data
-        }
+        if result:
+            debits = result['total_debits'] or 0
+            credits = result['total_credits'] or 0
+            return abs(debits - credits) < 0.01  # Allow for small rounding differences
+        return False
+
+    def _add_business_days(self, start_date, business_days):
+        """Add business days (Mon-Fri) to a date, skipping weekends"""
+        current_date = start_date
+        days_added = 0
+        
+        while days_added < business_days:
+            current_date += datetime.timedelta(days=1)
+            # Monday = 0, Sunday = 6. Skip Saturday (5) and Sunday (6)
+            if current_date.weekday() < 5:  # Monday through Friday
+                days_added += 1
+        
+        return current_date
