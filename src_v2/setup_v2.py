@@ -5,7 +5,7 @@ from mysql.connector import errorcode
 DB_CONFIG = {
     'user': 'root',
     'password': 'Hecther',
-    'host': 'Yoga-Master',
+    'host': 'localhost',
     'port': 3306
 }
 DB_NAME = 'digital_harvest_v2'
@@ -64,7 +64,6 @@ TABLES['market_events'] = (
     "  `target_sound_profile` ENUM('QUIET', 'MODERATE', 'LOUD') DEFAULT NULL"
     ") ENGINE=InnoDB")
 
-# --- (Other table definitions are unchanged) ---
 TABLES['vendor_products'] = (
     "CREATE TABLE `vendor_products` ("
     "  `vendor_product_id` INT AUTO_INCREMENT PRIMARY KEY,"
@@ -199,7 +198,6 @@ TABLES['marketing_campaigns'] = (
 
 # --- STARTING GAME DATA ---
 VENDORS_TO_ADD = [
-    # (Unchanged)
     {"name": "US Switches LLC", "vendor_type": "DISTRIBUTOR", "location": "North America", "base_lead_time_days": 3, "reliability_score": 0.99, "minimum_order_value": 150.00, "payment_terms": "NET 30", "shipping_cost_type": "FLAT_RATE", "shipping_flat_fee": 25.00, "shipping_variable_rate": 0.00},
     {"name": "Switch World Express", "vendor_type": "DISTRIBUTOR", "location": "Asia", "base_lead_time_days": 20, "reliability_score": 0.95, "minimum_order_value": 250.00, "payment_terms": "NET 30", "shipping_cost_type": "HYBRID", "shipping_flat_fee": 100.00, "shipping_variable_rate": 0.05},
     {"name": "KeebsForAll", "vendor_type": "DISTRIBUTOR", "location": "North America", "base_lead_time_days": 6, "reliability_score": 0.98, "minimum_order_value": 400.00, "payment_terms": "NET 15", "shipping_cost_type": "FLAT_RATE", "shipping_flat_fee": 40.00, "shipping_variable_rate": 0.00},
@@ -212,27 +210,24 @@ VENDORS_TO_ADD = [
     {"name": "Zeal PC", "vendor_type": "BOUTIQUE", "location": "North America", "base_lead_time_days": 15, "reliability_score": 0.99, "minimum_order_value": 5000.00, "payment_terms": "NET 30", "shipping_cost_type": "FLAT_RATE", "shipping_flat_fee": 150.00, "shipping_variable_rate": 0.00},
 ]
 
-# Updated product data with new metrics and statuses
 PRODUCTS_TO_ADD = [
-    # Starter unlocked products
-    {"category": "Tactile Switches", "name": "Gateron Brown", "manufacturer_name": "Gateron Manufacturing", "base_demand": 200, "price_sensitivity": 1.2, "default_price": 0.55, 
+    {"category": "Tactile Switches", "name": "Gateron Brown", "manufacturer_name": "Gateron Manufacturing", "base_demand": 350, "price_sensitivity": 1.2, "default_price": 0.65, 
      "status": "UNLOCKED", "switch_type": "TACTILE", "switch_feel": "LIGHT", "sound_profile": "MODERATE", "vendors": {
         "US Switches LLC": 0.28, "Switch World Express": 0.21, "KeebsForAll": 0.26, "Gateron Manufacturing": 0.18
     }},
-    {"category": "Linear Switches", "name": "Gateron Red", "manufacturer_name": "Gateron Manufacturing", "base_demand": 180, "price_sensitivity": 1.1, "default_price": 0.55, 
+    {"category": "Linear Switches", "name": "Gateron Red", "manufacturer_name": "Gateron Manufacturing", "base_demand": 320, "price_sensitivity": 1.1, "default_price": 0.65, 
      "status": "UNLOCKED", "switch_type": "LINEAR", "switch_feel": "LIGHT", "sound_profile": "QUIET", "vendors": {
         "Switch World Express": 0.21, "KeebsForAll": 0.26, "Budget Switches Co.": 0.19, "Gateron Manufacturing": 0.18
     }},
-    {"category": "Clicky Switches", "name": "Kailh Box White", "manufacturer_name": "Kailh Direct", "base_demand": 120, "price_sensitivity": 1.5, "default_price": 0.65, 
+    {"category": "Clicky Switches", "name": "Kailh Box White", "manufacturer_name": "Kailh Direct", "base_demand": 250, "price_sensitivity": 1.5, "default_price": 0.75, 
      "status": "UNLOCKED", "switch_type": "CLICKY", "switch_feel": "LIGHT", "sound_profile": "LOUD", "vendors": {
         "US Switches LLC": 0.35, "Switch World Express": 0.26, "Kailh Direct": 0.22
     }},
-    # Locked "premium" products
-    {"category": "Clicky Switches", "name": "Cherry MX Blue", "manufacturer_name": "Cherry Corp", "base_demand": 150, "price_sensitivity": 1.8, "default_price": 0.90, 
+    {"category": "Clicky Switches", "name": "Cherry MX Blue", "manufacturer_name": "Cherry Corp", "base_demand": 280, "price_sensitivity": 1.8, "default_price": 1.05, 
      "status": "LOCKED", "switch_type": "CLICKY", "switch_feel": "MEDIUM", "sound_profile": "LOUD", "vendors": {
         "US Switches LLC": 0.45, "KeebsForAll": 0.42, "EU Keys": 0.40, "Cherry Corp": 0.32
     }},
-    {"category": "Linear Switches", "name": "Cherry MX Black", "manufacturer_name": "Cherry Corp", "base_demand": 100, "price_sensitivity": 1.6, "default_price": 0.90, 
+    {"category": "Linear Switches", "name": "Cherry MX Black", "manufacturer_name": "Cherry Corp", "base_demand": 200, "price_sensitivity": 1.6, "default_price": 1.05, 
      "status": "LOCKED", "switch_type": "LINEAR", "switch_feel": "HEAVY", "sound_profile": "MODERATE", "vendors": {
         "KeebsForAll": 0.42, "EU Keys": 0.40, "Cherry Corp": 0.32
     }},
@@ -262,10 +257,10 @@ def main():
 
         print("\n--- Populating Initial Data ---")
         
-        cursor.execute("INSERT INTO business_state (state_key, state_value) VALUES (%s, %s)", ('cash_on_hand', '20000.00'))
+        cursor.execute("INSERT INTO business_state (state_key, state_value) VALUES (%s, %s)", ('cash_on_hand', '50000.00'))
         cursor.execute("INSERT INTO business_state (state_key, state_value) VALUES (%s, %s)", ('current_date', '2025-01-01 09:00:00'))
         cursor.execute("INSERT INTO business_state (state_key, state_value) VALUES (%s, %s)", ('start_date', '2025-01-01 09:00:00'))
-        print("  - Set initial cash to $20,000 and date to 2025-01-01.")
+        print("  - Set initial cash to $50,000 and date to 2025-01-01.")
 
         category_names = {p['category'] for p in PRODUCTS_TO_ADD}
         category_map = {}
@@ -291,7 +286,6 @@ def main():
             cat_id = category_map[product['category']]
             manu_id = vendor_map.get(product.get('manufacturer_name'))
             
-            # Updated INSERT statement for products
             cursor.execute(
                 ("INSERT INTO products (name, category_id, manufacturer_id, base_demand, price_sensitivity, "
                  "status, switch_type, switch_feel, sound_profile) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"),
@@ -318,19 +312,19 @@ def main():
                         "INSERT INTO volume_discounts (vendor_product_id, min_quantity, max_quantity, unit_cost) VALUES (%s, %s, %s, %s)",
                         (vendor_product_id, 1, None, cost)
                     )
-        print("  - Populated products, vendor links, and pricing with new metrics.")
+        print("  - Populated products, vendor links, and pricing.")
         
         cursor.execute(
             "INSERT INTO recurring_expenses (description, account, amount, frequency) VALUES (%s, %s, %s, %s)",
-            ('Warehouse Rent', 'Operating Expenses', 2000.00, 'MONTHLY')
+            ('Warehouse Rent', 'Operating Expenses', 1200.00, 'MONTHLY')
         )
         cursor.execute(
             "INSERT INTO recurring_expenses (description, account, amount, frequency) VALUES (%s, %s, %s, %s)",
-            ('Warehouse Utilities', 'Operating Expenses', 500.00, 'MONTHLY')
+            ('Warehouse Utilities', 'Operating Expenses', 250.00, 'MONTHLY')
         )
         cursor.execute(
             "INSERT INTO recurring_expenses (description, account, amount, frequency) VALUES (%s, %s, %s, %s)",
-            ('Inventory Software Subscription', 'Software Expenses', 150.00, 'MONTHLY')
+            ('Inventory Software Subscription', 'Software Expenses', 75.00, 'MONTHLY')
         )
         print("  - Populated default recurring expenses.")
 
