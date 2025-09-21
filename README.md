@@ -6,7 +6,7 @@ Digital Harvest is an interactive, terminal-based business simulation engine bui
 
 The primary goal is to provide a robust backend and data model that can be used for accurate business intelligence, answering not just "What did we sell?" but "Was the business profitable, and why?" This project showcases the powerful intersection of software engineering, database design, and financial analysis.
 
-I've started a collection of stories and scenarios from the Digital Harvest business simulation project. You can find them [here](/stories/index.html).
+I've started a collection of stories and scenarios from the Digital Harvest business simulation project. You can find them [here](https://matthew-s-jenkins.github.io/digital-harvest-sim/stories/index.html).
 
 
 ## Table of Contents
