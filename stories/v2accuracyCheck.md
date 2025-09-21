@@ -1,9 +1,9 @@
 [Table of Contents](index.html)
-## Session: Running v2 of the project. Logic should be should be sound but needs testing.
+## Session: Accuracy Check
 
 **Date:** 2025-09-21
 ## Starting Position
-I believe I have all the code in place to take care of the financial and inventory logic. It needs a thorough accuracy check after running though a few games to collect statistical measures to demonstrate in the dashboard.
+I have all the code in place to take care of the financial and inventory logic but it needs a thorough accuracy check. After running though a few games to collect statistical measures to demonstrate in the dashboard I want to be sure the numbers are right.
 * **Cash:** $50,000
 * **Core principles for this game session:** Starting with no inventory and buying 3 types of mechanical keyboard switches. Two others will unlock later in the game after revenue milestones.<br>
 * **Market Condition:** 
