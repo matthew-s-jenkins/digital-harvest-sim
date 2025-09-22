@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Harvest - Business Sim</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        const API_BASE_URL = 'http://127.0.0.1:5000';
+
+        // --- Helper Components ---
+        const TabButton = ({ children, onClick, isActive }) => {
+            const baseClasses = "py-2 px-4 font-semibold rounded-t-lg focus:outline-none transition-colors duration-200";
+            const activeClasses = "bg-white text-indigo-600 shadow-sm";
+            const inactiveClasses = "bg-gray-200 text-gray-600 hover:bg-gray-300";
+            return (
+                <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
+                    {children}
+                </button>
+            );
+        };
+
+        // --- Inventory Management Component ---
+        const InventoryDashboard = ({ status, onRefresh, onPurchase }) => {
+            const [salePrices, setSalePrices] = useState({});
+            const [purchaseInputs, setPurchaseInputs] = useState({});
+            const [loading, setLoading] = useState(false);
+
+            const groupedInventory = status.inventory.reduce((acc, item) => {
+                const category = item.category || 'Uncategorized';
+                if (!acc[category]) acc[category] = [];
+                acc[category].push(item);
+                return acc;
+            }, {});
+            const [openCategory, setOpenCategory] = useState(Object.keys(groupedInventory)[0] || null);
+
+            useEffect(() => {
+                const initialSalePrices = {};
+                const initialPurchaseInputs = {};
+                status.inventory.forEach(item => {
+                    initialSalePrices[item.product_id] = salePrices[item.product_id] || item.last_sale_price || item.default_price;
+                    initialPurchaseInputs[item.product_id] = {
+                        qty: purchaseInputs[item.product_id]?.qty || item.last_purchase_quantity || '',
+                        price: purchaseInputs[item.product_id]?.price || item.last_purchase_price || item.default_cost
+                    };
+                });
+                setSalePrices(initialSalePrices);
+                setPurchaseInputs(initialPurchaseInputs);
+            }, [status]);
+            
+            const handleAdvanceTime = async () => {
+                const days = parseInt(prompt("How many days to simulate?", "7"));
+                if (isNaN(days) || days <= 0) return;
+                setLoading(true);
+                await fetch(`${API_BASE_URL}/api/advance_time`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days, prices: salePrices })
+                });
+                onRefresh(true);
+            };
+
+            const handleBulkPurchase = async () => {
+                const purchasesToProcess = status.inventory
+                    .map(item => ({
+                        product_id: item.product_id,
+                        quantity: parseInt(purchaseInputs[item.product_id]?.qty, 10) || 0,
+                        unit_cost: parseFloat(purchaseInputs[item.product_id]?.price) || 0,
+                    }))
+                    .filter(p => p.quantity > 0 && p.unit_cost > 0);
+
+                if (purchasesToProcess.length === 0) {
+                    alert("No purchases to process. Please enter quantity and price for items you wish to buy.");
+                    return;
+                }
+                
+                setLoading(true);
+                for (const purchase of purchasesToProcess) {
+                     await fetch(`${API_BASE_URL}/api/purchase`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(purchase)
+                    });
+                }
+                onPurchase(purchasesToProcess.length);
+                onRefresh();
+            };
+
+            const pendingOrderTotal = Object.values(purchaseInputs).reduce((total, input) => {
+                const qty = parseFloat(input.qty) || 0;
+                const price = parseFloat(input.price) || 0;
+                return total + (qty * price);
+            }, 0);
+
+            return (
+                 <div className="bg-white shadow rounded-lg">
+                    <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                         <h2 className="text-2xl font-semibold">Inventory Management</h2>
+                         <div className="flex items-center space-x-4">
+                            {pendingOrderTotal > 0 && (
+                                <div className="text-right">
+                                    <div className="font-semibold text-lg text-gray-800">${pendingOrderTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    <div className="text-xs text-gray-500">PENDING ORDER</div>
+                                </div>
+                            )}
+                             <button onClick={handleBulkPurchase} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-gray-400" disabled={loading || pendingOrderTotal === 0}>
+                                Process Purchases
+                            </button>
+                            <button onClick={handleAdvanceTime} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-gray-400" disabled={loading}>
+                                {loading ? 'Simulating...' : 'Advance Time'}
+                            </button>
+                        </div>
+                    </div>
+                    {Object.keys(groupedInventory).map(categoryName => (
+                        <div key={categoryName} className="border-b border-gray-200 last:border-b-0">
+                            <button onClick={() => setOpenCategory(prev => prev === categoryName ? null : categoryName)} className="w-full text-left p-4 bg-gray-50 hover:bg-gray-100 focus:outline-none">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-xl font-semibold text-gray-800">{categoryName}</h3>
+                                    <span className="text-2xl">{openCategory === categoryName ? '-' : '+'}</span>
+                                </div>
+                            </button>
+                            {openCategory === categoryName && (
+                                <div className="max-h-96 overflow-y-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale Price ($)</th>
+                                            <th className="w-24 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Qty</th>
+                                            <th className="w-32 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Price ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {groupedInventory[categoryName].map(item => (
+                                            <tr key={item.product_id}>
+                                                <td className="px-4 py-4 whitespace-nowrap font-medium">{item.name}</td>
+                                                <td className="px-2 py-4 whitespace-nowrap text-center text-lg font-semibold">{item.stock}</td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <input type="number" step="0.01" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value={salePrices[item.product_id] || ''} onChange={(e) => setSalePrices(prev => ({...prev, [item.product_id]: e.target.value}))}/>
+                                                </td>
+                                                <td className="px-2 py-4 whitespace-nowrap">
+                                                    <input type="number" placeholder="Qty" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value={purchaseInputs[item.product_id]?.qty || ''} onChange={(e) => setPurchaseInputs(prev => ({...prev, [item.product_id]: {...prev[item.product_id], qty: e.target.value}}))}/>
+                                                </td>
+                                                <td className="px-2 py-4 whitespace-nowrap">
+                                                    <input type="number" step="0.01" placeholder="Cost" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value={purchaseInputs[item.product_id]?.price || ''} onChange={(e) => setPurchaseInputs(prev => ({...prev, [item.product_id]: {...prev[item.product_id], price: e.target.value}}))}/>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- Expense Management Component ---
+        const ExpenseDashboard = ({ onRefresh }) => {
+            const [expenses, setExpenses] = useState({ recurring: [], one_off: [] });
+            const [loading, setLoading] = useState(true);
+            
+            const [newRecurring, setNewRecurring] = useState({ description: '', account: 'General & Administrative', amount: '', frequency: 'MONTHLY' });
+            const [newOneOff, setNewOneOff] = useState({ description: '', account: 'Marketing', amount: '' });
+
+            const fetchExpenses = useCallback(async () => {
+                setLoading(true);
+                const response = await fetch(`${API_BASE_URL}/api/expenses`);
+                const data = await response.json();
+                setExpenses(data);
+                setLoading(false);
+            }, []);
+
+            useEffect(() => {
+                fetchExpenses();
+            }, [fetchExpenses]);
+            
+            const handleAddRecurring = async (e) => {
+                e.preventDefault();
+                await fetch(`${API_BASE_URL}/api/expenses/recurring`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRecurring)
+                });
+                setNewRecurring({ description: '', account: 'General & Administrative', amount: '', frequency: 'MONTHLY' });
+                fetchExpenses();
+                onRefresh();
+            };
+
+            const handleDeleteRecurring = async (expenseId) => {
+                if (confirm('Are you sure you want to delete this recurring expense?')) {
+                    await fetch(`${API_BASE_URL}/api/expenses/recurring/${expenseId}`, { method: 'DELETE' });
+                    fetchExpenses();
+                    onRefresh();
+                }
+            };
+
+            const handleAddOneOff = async (e) => {
+                e.preventDefault();
+                await fetch(`${API_BASE_URL}/api/expenses/one-off`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newOneOff)
+                });
+                setNewOneOff({ description: '', account: 'Marketing', amount: '' });
+                fetchExpenses();
+                onRefresh();
+            };
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Recurring Expenses Section */}
+                    <div className="bg-white shadow rounded-lg p-4">
+                        <h2 className="text-2xl font-semibold mb-4">Recurring Expenses</h2>
+                        <ul className="divide-y divide-gray-200 mb-4">
+                           {expenses.recurring.map(exp => (
+                               <li key={exp.expense_id} className="py-2 flex justify-between items-center">
+                                   <div>
+                                       <p className="font-semibold">{exp.description} (${parseFloat(exp.amount).toFixed(2)} / {exp.frequency.toLowerCase()})</p>
+                                       <p className="text-sm text-gray-500">{exp.account}</p>
+                                   </div>
+                                   <button onClick={() => handleDeleteRecurring(exp.expense_id)} className="text-red-500 hover:text-red-700 text-sm font-semibold">DELETE</button>
+                               </li>
+                           ))}
+                        </ul>
+                        <form onSubmit={handleAddRecurring} className="space-y-3 border-t pt-4">
+                             <h3 className="font-semibold">Add New Recurring Expense</h3>
+                             <input type="text" placeholder="Description (e.g., Shopify Subscription)" value={newRecurring.description} onChange={e => setNewRecurring({...newRecurring, description: e.target.value})} required className="block w-full rounded-md border-gray-300 shadow-sm"/>
+                             <input type="text" placeholder="Account (e.g., Software)" value={newRecurring.account} onChange={e => setNewRecurring({...newRecurring, account: e.target.value})} required className="block w-full rounded-md border-gray-300 shadow-sm"/>
+                             <div className="flex space-x-2">
+                                <input type="number" step="0.01" placeholder="Amount" value={newRecurring.amount} onChange={e => setNewRecurring({...newRecurring, amount: e.target.value})} required className="block w-full rounded-md border-gray-300 shadow-sm"/>
+                                <select value={newRecurring.frequency} onChange={e => setNewRecurring({...newRecurring, frequency: e.target.value})} className="block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="MONTHLY">Monthly</option>
+                                    <option value="DAILY">Daily</option>
+                                </select>
+                             </div>
+                             <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Add Recurring</button>
+                        </form>
+                    </div>
+                     {/* One-Off Expenses Section */}
+                    <div className="bg-white shadow rounded-lg p-4">
+                        <h2 className="text-2xl font-semibold mb-4">One-Off & Variable Expenses</h2>
+                         <form onSubmit={handleAddOneOff} className="space-y-3 mb-4 border-b pb-4">
+                             <h3 className="font-semibold">Record a One-Off Expense</h3>
+                             <input type="text" placeholder="Description (e.g., Marketing Campaign)" value={newOneOff.description} onChange={e => setNewOneOff({...newOneOff, description: e.target.value})} required className="block w-full rounded-md border-gray-300 shadow-sm"/>
+                             <input type="text" placeholder="Account (e.g., Marketing)" value={newOneOff.account} onChange={e => setNewOneOff({...newOneOff, account: e.target.value})} required className="block w-full rounded-md border-gray-300 shadow-sm"/>
+                             <input type="number" step="0.01" placeholder="Amount" value={newOneOff.amount} onChange={e => setNewOneOff({...newOneOff, amount: e.target.value})} required className="block w-full rounded-md border-gray-300 shadow-sm"/>
+                             <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Record Expense</button>
+                        </form>
+                        <h3 className="font-semibold mb-2">Recent Variable & One-Off Costs</h3>
+                        <ul className="divide-y divide-gray-200 max-h-60 overflow-y-auto">
+                           {expenses.one_off.map(exp => (
+                               <li key={exp.entry_id} className="py-2">
+                                   <div className="flex justify-between items-center">
+                                     <p className="font-semibold">{exp.description}</p>
+                                     <p className="font-mono text-red-600">${parseFloat(exp.debit).toFixed(2)}</p>
+                                   </div>
+                                   <p className="text-sm text-gray-500">{new Date(exp.transaction_date).toLocaleDateString()} - {exp.account}</p>
+                               </li>
+                           ))}
+                        </ul>
+                    </div>
+                </div>
+            );
+        };
+
+
+        // --- Main App Component ---
+        function App() {
+            const [status, setStatus] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [activeTab, setActiveTab] = useState('inventory');
+            const [purchaseCount, setPurchaseCount] = useState(0);
+
+            const fetchStatus = useCallback(async (resetCounter = false) => {
+                if (resetCounter) {
+                    setPurchaseCount(0);
+                }
+                setLoading(true);
+                setError(null);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/status`);
+                    if (!response.ok) throw new Error(`Network: ${response.statusText}`);
+                    const data = await response.json();
+                    setStatus(data);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            }, []);
+
+            const handlePurchaseEvent = (count) => {
+                setPurchaseCount(prev => prev + 1);
+            };
+
+            useEffect(() => {
+                fetchStatus();
+            }, [fetchStatus]);
+
+            if (error) return <div className="p-4"><div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"><strong>Error:</strong> {error}. Is the API server running?</div></div>;
+            if (loading || !status) return <div className="text-center p-8 text-xl">Loading Simulation...</div>;
+
+            return (
+                <div className="container mx-auto p-4 max-w-7xl">
+                    <header className="bg-white shadow rounded-lg p-4 mb-6">
+                        <h1 className="text-3xl font-bold text-gray-900">Digital Harvest Dashboard</h1>
+                        <div className="flex justify-between items-center mt-2 text-lg">
+                            <div><strong>Date:</strong> {status.date}</div>
+                             {purchaseCount > 0 && (
+                                <div><strong>Purchases This Session:</strong> <span className="font-semibold text-blue-600">{purchaseCount}</span></div>
+                            )}
+                            <div><strong>Cash:</strong> <span className="text-green-600 font-semibold">${status.cash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                        </div>
+                    </header>
+                    
+                    <div className="mb-4 flex space-x-2">
+                        <TabButton onClick={() => setActiveTab('inventory')} isActive={activeTab === 'inventory'}>Inventory</TabButton>
+                        <TabButton onClick={() => setActiveTab('expenses')} isActive={activeTab === 'expenses'}>Expenses</TabButton>
+                    </div>
+
+                    <div className="mt-[-1px]">
+                        {activeTab === 'inventory' && <InventoryDashboard status={status} onRefresh={fetchStatus} onPurchase={handlePurchaseEvent} />}
+                        {activeTab === 'expenses' && <ExpenseDashboard onRefresh={fetchStatus} />}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

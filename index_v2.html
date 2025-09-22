@@ -310,7 +310,6 @@
             );
         };
         
-        {/* --- NEW COMPONENT ADDED HERE --- */}
         const PendingDeliveriesPanel = ({ gameDate, refreshTrigger }) => {
             const [orders, setOrders] = useState([]);
             const [expandedOrder, setExpandedOrder] = useState(null);
@@ -410,10 +409,22 @@
             return (
                 <div className="space-y-6">
                     <div className="grid grid-cols-4 gap-6">
-                        <div className="bg-gray-800 p-4 rounded-lg shadow"><div className="text-gray-400 text-sm">Cash on Hand</div><div className="text-2xl font-bold text-green-400">${status.cash.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>
-                        <div className="bg-gray-800 p-4 rounded-lg shadow"><div className="text-gray-400 text-sm">Inventory Value</div><div className="text-2xl font-bold">${status.total_inventory_value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>
-                        <div className="bg-gray-800 p-4 rounded-lg shadow"><div className="text-gray-400 text-sm">Accounts Payable</div><div className="text-2xl font-bold text-yellow-400">${status.accounts_payable.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>
-                        <div className="bg-gray-800 p-4 rounded-lg shadow"><div className="text-gray-400 text-sm">Outstanding Debt</div><div className="text-2xl font-bold text-red-400">${status.total_debt.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>
+                        <div className="bg-gray-800 p-4 rounded-lg shadow">
+                            <div className="text-gray-400 text-sm">Cash on Hand</div>
+                            <div className="text-2xl font-bold text-green-400">${status.cash.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
+                        <div className="bg-gray-800 p-4 rounded-lg shadow">
+                            <div className="text-gray-400 text-sm">Inventory Value</div>
+                            <div className="text-2xl font-bold">${status.total_inventory_value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
+                        <div className="bg-gray-800 p-4 rounded-lg shadow">
+                            <div className="text-gray-400 text-sm">Accounts Payable</div>
+                            <div className="text-2xl font-bold text-yellow-400">${status.accounts_payable.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
+                        <div className="bg-gray-800 p-4 rounded-lg shadow">
+                            <div className="text-gray-400 text-sm">Outstanding Debt</div>
+                            <div className="text-2xl font-bold text-red-400">${status.total_debt.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
                     </div>
                     <div className="grid grid-cols-3 gap-6">
                         <div className="col-span-2 bg-gray-800 p-4 rounded-lg shadow">
@@ -884,7 +895,6 @@
                                 <li><button onClick={() => setActivePage('bank')} className={`w-full text-left p-2 rounded-lg ${activePage === 'bank' ? 'bg-blue-600' : 'hover:bg-gray-700'}`}>🏦 Bank</button></li>
                             </ul>
                             <BillsDuePanel gameDate={status.date} />
-                            {/* --- NEW COMPONENT ADDED HERE --- */}
                             <PendingDeliveriesPanel gameDate={status.date} refreshTrigger={refreshTrigger} />
                         </nav>
                         <main className="w-4/5">
