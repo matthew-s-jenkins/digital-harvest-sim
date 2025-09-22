@@ -2,11 +2,11 @@
 
 ## Project Objective
 
-Digital Harvest is an interactive, terminal-based business simulation engine built on a foundation of real-world accounting principles. This project was designed to create a "digital twin" of a retail business, allowing a user to make high-level strategic decisions about inventory, pricing, and expenses, while accurately tracking the downstream impact on a double-entry accounting ledger.
+Perfect Books begins as version Digital Harvest 2.0. Its likely to become the bones of the next version of Digital Harvest.
 
-The primary goal is to provide a robust backend and data model that can be used for accurate business intelligence, answering not just "What did we sell?" but "Was the business profitable, and why?" This project showcases the powerful intersection of software engineering, database design, and financial analysis.
+This project will become a personal financial management and tracking system for myself until i can make it public for other users.
 
-I've started a collection of stories and scenarios from the Digital Harvest business simulation project. You can find them [here](https://matthew-s-jenkins.github.io/digital-harvest-sim/stories/index.html).
+This is open source and you can download it yourself and run it locally right now.
 
 
 ## Table of Contents
@@ -23,8 +23,6 @@ I've started a collection of stories and scenarios from the Digital Harvest busi
 * **Double-Entry Accounting:** Every transaction generates corresponding entries in a financial ledger, accurately tracking assets, revenue, and costs according to standard accounting principles.
 * **Perpetual Inventory System:** An inventory ledger tracks the quantity and value of stock in real-time as purchases and sales occur.
 * **Dynamic Sales Modeling:** A sophisticated sales model that factors in long-term trends, seasonality, weekly cycles, and price sensitivity to generate realistic demand.
-* **Market Events System:** Random market events create temporary demand boosts for specific product categories, adding strategic depth.
-* **Progressive Product Unlocks:** New products become available as your business grows, expanding your catalog over time.
 * **Multi-Vendor Supply Chain:** Source products from different vendors with varying lead times, costs, and minimum order requirements.
 * **Banking & Loan System:** Access business loans to fund growth, with realistic repayment terms and interest calculations.
 * **Persistent State:** The simulation's state (cash on hand, current date) is persisted in the database, allowing it to be stopped and restarted seamlessly.
