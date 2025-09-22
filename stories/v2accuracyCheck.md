@@ -18,7 +18,7 @@ For now i want to check that the sale record is true and accurate in the both th
 
 ## Outcome
 
-* **Ending Cash:** $94,091.59 with almost $25k in inventory.
+* **Ending Cash:** $1,045,861.82 with almost $140k in inventory.
 * **Lessons Learned:** Winning is possible. I needed a better way to track outstanding orders. Financial logic is correct.
 * **Notes:**<br>
 1/1/25<br>
@@ -43,5 +43,8 @@ Company equity has started to increase.<br>
 Beyond this point..<br>
 I kept all items in stock. I ordered way in advance and started advancing time 60 days at a time.<br>
 Total company equity grew to $117k and I was winning the game. I checked credits vs debits and they equal out to $0. The numbers in my dashboard match those straight from MySQL Workbench.<br>
-Several bugs were caught and worked though this run.
+Several bugs were caught and worked though this run.<br>
+6/25/2039<br>
+Continued playing getting to the point of keeping around 150,000 of each item, and advancing time 360 days at a time. I showed that the system is robust, books remain correct, and to see things get stressed with an ever-growing database<br>
+Ended with over $1,000,000
 
