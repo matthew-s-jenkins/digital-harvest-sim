@@ -19,7 +19,7 @@ For now i want to check that the sale record is true and accurate in the both th
 ## Outcome
 
 * **Ending Cash:** $1,045,861.82 with almost $140k in inventory.
-* **Lessons Learned:** Winning is possible. I needed a better way to track outstanding orders. Financial logic is correct.
+* **Lessons Learned:** Winning is possible. I needed a better way to track outstanding orders. Financial logic is correct and scalable. 
 * **Notes:**<br>
 1/1/25<br>
 I ordered 1000 each of browns, and whites from my 3 day vendor.<br>
