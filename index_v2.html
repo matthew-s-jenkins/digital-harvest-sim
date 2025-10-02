@@ -396,17 +396,7 @@
 
         // --- PAGE COMPONENTS ---
         
-        const DashboardPage = ({ status, salesHistory }) => {
-            const [dashboardData, setDashboardData] = useState({ inventory_by_category: [] });
-            useEffect(() => {
-                const fetchDashboardData = async () => {
-                    try {
-                        const res = await fetch(`${API_BASE_URL}/api/dashboard_data`);
-                        if(res.ok) setDashboardData(await res.json());
-                    } catch (e) { console.error("Could not fetch dashboard data", e); }
-                };
-                fetchDashboardData();
-            }, [status]);
+        const DashboardPage = ({ status, salesHistory, dashboardData }) => {
             return (
                 <div className="space-y-6">
                     <div className="grid grid-cols-4 gap-6">
@@ -791,6 +781,7 @@
             const [status, setStatus] = useState(null);
             const [vendors, setVendors] = useState({ available: [], prospective: [] });
             const [salesHistory, setSalesHistory] = useState([]);
+            const [dashboardData, setDashboardData] = useState({ inventory_by_category: [] });
             const [activePage, setActivePage] = useState('dashboard');
             const [error, setError] = useState(null);
             const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -798,16 +789,18 @@
             const fetchData = useCallback(async () => {
                 try {
                     setError(null);
-                    const [statusRes, vendorsRes, salesRes] = await Promise.all([
+                    const [statusRes, vendorsRes, salesRes, dashboardRes] = await Promise.all([
                         fetch(`${API_BASE_URL}/api/status`),
                         fetch(`${API_BASE_URL}/api/vendors`),
-                        fetch(`${API_BASE_URL}/api/sales_history`)
+                        fetch(`${API_BASE_URL}/api/sales_history`),
+                        fetch(`${API_BASE_URL}/api/dashboard_data`)
                     ]);
-                    if (!statusRes.ok || !vendorsRes.ok || !salesRes.ok) throw new Error('API request failed');
+                    if (!statusRes.ok || !vendorsRes.ok || !salesRes.ok || !dashboardRes.ok) throw new Error('API request failed');
                     const statusData = await statusRes.json();
                     setStatus(statusData);
                     setVendors(await vendorsRes.json());
                     setSalesHistory(await salesRes.json());
+                    setDashboardData(await dashboardRes.json());
                 } catch (err) { setError(err.message); }
             }, []);
 
@@ -888,7 +881,7 @@
                             <PendingDeliveriesPanel gameDate={status.date} refreshTrigger={refreshTrigger} />
                         </nav>
                         <main className="w-4/5">
-                            {activePage === 'dashboard' && <DashboardPage status={status} salesHistory={salesHistory} />}
+                            {activePage === 'dashboard' && <DashboardPage status={status} salesHistory={salesHistory} dashboardData={dashboardData} />}
                             {activePage === 'inventory' && <InventoryPage gameDate={status.date} />}
                             {activePage === 'suppliers' && <SuppliersPage vendors={vendors} onOrder={handleOrder} cash={status.cash} gameDate={status.date} />}
                             {activePage === 'marketing' && <MarketingPage onAction={fetchData} gameDate={status.date} />}

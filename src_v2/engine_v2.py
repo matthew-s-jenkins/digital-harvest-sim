@@ -25,7 +25,7 @@ class BusinessSimulator:
             {'name': 'Ergonomics Trend: Tactile Switches', 'description': 'A new study on workplace ergonomics is boosting demand for tactile switches.', 'duration': 20, 'boost': 1.3, 'metrics': {'target_switch_type': 'TACTILE'}},
             {'name': 'ASMR Popularity: Loud Switches', 'description': 'The ASMR community is driving unexpected demand for loud, clicky switches.', 'duration': 10, 'boost': 1.75, 'metrics': {'target_sound_profile': 'LOUD'}},
         ]
-        print(f"✅ Business simulation engine v2 initialized. Cash: ${self.cash:,.2f}, Date: {self.current_date.date()}")
+        print(f"[OK] Business simulation engine v2 initialized. Cash: ${self.cash:,.2f}, Date: {self.current_date.date()}")
     
     def _get_db_connection(self):
         conn = mysql.connector.connect(**DB_CONFIG)
@@ -141,22 +141,24 @@ class BusinessSimulator:
 
     def get_inventory_value_by_category(self):
         conn, cursor = self._get_db_connection()
+        # Optimized query using window functions instead of correlated subqueries
         query = (
-            "SELECT pc.name as category_name, SUM(i.quantity_on_hand_after * COALESCE(ac.avg_cost, 0)) as category_value "
+            "SELECT pc.name as category_name, "
+            "       SUM(latest.quantity_on_hand_after * COALESCE(avg_costs.avg_cost, 0)) as category_value "
             "FROM ( "
-            "    SELECT product_id, quantity_on_hand_after "
-            "    FROM inventory_ledger il1 "
-            "    WHERE entry_id = (SELECT MAX(entry_id) FROM inventory_ledger il2 WHERE il1.product_id = il2.product_id) "
-            ") i "
+            "    SELECT product_id, quantity_on_hand_after, "
+            "           ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY entry_id DESC) as rn "
+            "    FROM inventory_ledger "
+            ") latest "
             "LEFT JOIN ( "
             "    SELECT product_id, AVG(unit_cost) as avg_cost "
             "    FROM inventory_ledger "
             "    WHERE type = 'Purchase' "
             "    GROUP BY product_id "
-            ") ac ON i.product_id = ac.product_id "
-            "JOIN products p ON i.product_id = p.product_id "
+            ") avg_costs ON latest.product_id = avg_costs.product_id "
+            "JOIN products p ON latest.product_id = p.product_id "
             "JOIN product_categories pc ON p.category_id = pc.category_id "
-            "WHERE i.quantity_on_hand_after > 0 "
+            "WHERE latest.rn = 1 AND latest.quantity_on_hand_after > 0 "
             "GROUP BY pc.name"
         )
         cursor.execute(query)
@@ -561,7 +563,7 @@ class BusinessSimulator:
             self.current_date += datetime.timedelta(days=1)
         
         self._save_state()
-        print("✅ Simulation advance complete.")
+        print("[OK] Simulation advance complete.")
         return {'newly_unlocked': newly_unlocked, 'log': log_messages}
 
     def _process_sales(self):
