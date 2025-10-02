@@ -1,186 +1,355 @@
 # Digital Harvest - Accounting-Based Business Simulator
 
-## Project Objective
+[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![Power BI](https://img.shields.io/badge/Power%20BI-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)](https://powerbi.microsoft.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-Digital Harvest is an interactive, terminal-based business simulation engine built on a foundation of real-world accounting principles. This project was designed to create a "digital twin" of a retail business, allowing a user to make high-level strategic decisions about inventory, pricing, and expenses, while accurately tracking the downstream impact on a double-entry accounting ledger.
+> A sophisticated business simulation engine built on real-world accounting principles, providing an interactive platform for strategic decision-making and financial analysis.
 
-The primary goal is to provide a robust backend and data model that can be used for accurate business intelligence, answering not just "What did we sell?" but "Was the business profitable, and why?" This project showcases the powerful intersection of software engineering, database design, and financial analysis.
+---
 
-I've started a collection of stories and scenarios from the Digital Harvest business simulation project. You can find them [here](https://matthew-s-jenkins.github.io/digital-harvest-sim/stories/index.html).
+## 📋 Table of Contents
 
-
-## Table of Contents
+- [About the Project](#about-the-project)
+- [Demo](#demo)
 - [Core Features](#core-features)
 - [Tech Stack](#tech-stack)
-- [Dashboard & Analysis](#dashboard--analysis)
-- [Setup Instructions](#setup-instructions)
-- [Database Schema](#database-schema)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Running the Application](#running-the-application)
+- [Dashboard & Analytics](#dashboard--analytics)
+- [Database Architecture](#database-architecture)
+- [Project Structure](#project-structure)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-## Core Features
+---
 
-### Simulation Engine
+## 🎯 About the Project
 
-* **Double-Entry Accounting:** Every transaction generates corresponding entries in a financial ledger, accurately tracking assets, revenue, and costs according to standard accounting principles.
-* **Perpetual Inventory System:** An inventory ledger tracks the quantity and value of stock in real-time as purchases and sales occur.
-* **Dynamic Sales Modeling:** A sophisticated sales model that factors in long-term trends, seasonality, weekly cycles, and price sensitivity to generate realistic demand.
-* **Market Events System:** Random market events create temporary demand boosts for specific product categories, adding strategic depth.
-* **Progressive Product Unlocks:** New products become available as your business grows, expanding your catalog over time.
-* **Multi-Vendor Supply Chain:** Source products from different vendors with varying lead times, costs, and minimum order requirements.
-* **Banking & Loan System:** Access business loans to fund growth, with realistic repayment terms and interest calculations.
-* **Persistent State:** The simulation's state (cash on hand, current date) is persisted in the database, allowing it to be stopped and restarted seamlessly.
+**Digital Harvest** is an interactive business simulation engine that models a retail business with **real-world accounting accuracy**. Unlike typical business games, this simulator maintains a complete **double-entry accounting system**, tracking every transaction through a financial ledger that follows GAAP principles.
 
-### User Interfaces & Analysis
-* **Enhanced Web UI (v2):** A comprehensive React-based dashboard with multiple pages for inventory management, supplier relationships, marketing campaigns, expense tracking, and financial analysis.
-* **Real-time Debug Tools:** Built-in debugging panels to monitor sales activity, inventory changes, and system performance.
-* **Terminal Application:** A classic command-line interface provides an alternative way to manage the business day-by-day.
-* **BI-Ready Schema:** The normalized MySQL database is designed for direct connection with business intelligence tools like Power BI, enabling the creation of live, interactive dashboards.
+### The Vision
 
-## Tech Stack
+The project creates a "digital twin" of a retail business, allowing users to:
+- Make high-level strategic decisions about inventory, pricing, and marketing
+- See the immediate financial impact of their choices
+- Understand the connection between operations and profitability
+- Learn business principles through hands-on experimentation
 
-* **Backend:** Python 3
-* **Database:** MySQL
-* **Frontend:** React with Tailwind CSS for styling.
-* **Data Analysis:** Microsoft Power BI
-* **Key Libraries:** `mysql-connector-python`, `flask`, `flask-cors`
+### Why This Matters
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
-![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![Power BI](https://img.shields.io/badge/Power%20BI-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+Most business simulations simplify or ignore accounting. Digital Harvest proves that you can have both **engaging gameplay** and **financial accuracy**. The normalized database schema makes it perfect for:
+- 📊 **Business Intelligence**: Connect Power BI for real-time dashboards
+- 📚 **Education**: Learn accounting principles through interactive simulation
+- 🔬 **Analysis**: Answer complex questions like "Which vendor maximizes ROI?"
+- 🎮 **Entertainment**: Experience the satisfaction of building a profitable business
 
+**Explore the Stories:** I've documented interesting scenarios and discoveries from the simulation [here](https://matthew-s-jenkins.github.io/digital-harvest-sim/stories/index.html).
 
-## Dashboard & Analysis
+---
 
-The data generated by the simulation is visualized in a multi-page Power BI dashboard designed to provide a comprehensive business overview. The web UI provides direct operational control over the business.
+## 🎬 Demo
 
-### Web Interface v2 (Interactive Dashboard)
+### Interactive Web Interface
 
 ![Business UI Demo](screenshots/Business_UI.gif)
 
-*The enhanced v2 web interface featuring real-time inventory management, supplier relationships, marketing campaigns, and financial tracking.*
+*Real-time inventory management, supplier negotiations, marketing campaigns, and financial tracking—all in one intuitive dashboard.*
 
-### Power BI Analytics
-These dashboards are currently in the logic prototyping stage. They will be formatted and finalized as the project nears completion.
+---
 
-## 1. The Executive Summary Dashboard
+## ✨ Core Features
 
+### 💰 Accounting Engine
 
-![Sales Tab](screenshots/ExecutiveSummary10.02.25.jpg)
-Objective: To provide a high-level, at-a-glance overview of the business's overall financial health and profitability. This dashboard is designed for strategic decision-making, answering the fundamental questions: "Are we profitable?" and "How is our financial position trending over time?"
+- **Double-Entry Ledger**: Every transaction creates balanced debit/credit entries
+- **Perpetual Inventory System**: Real-time quantity and value tracking
+- **Multi-Account Structure**: Cash, Inventory, AP, Revenue, COGS, Operating Expenses
+- **Financial Statements**: Auto-generated Balance Sheet and P&L capability
 
-* **Key Features & Insights**:
-Headline KPIs: Four prominent cards display the most critical real-time metrics: Cash on Hand, Accounts Payable (AP) Due, Gross Profit, and Net Profit.
+### 📈 Sales & Demand Modeling
 
-* **Monthly Profit & Loss**: A clustered column and line chart that tracks Total Revenue against Operating Expenses on a monthly basis. The integrated Net Profit line provides a clear visual trend of the company's bottom-line performance.
+- **Realistic Demand Curves**: Long-term trends, seasonality, and weekly patterns
+- **Price Sensitivity**: Customer response to pricing changes
+- **Market Events**: Random boosts to specific product categories
+- **Progressive Unlocks**: New products become available as revenue milestones are reached
 
-* **Operating Expense Breakdown**: An interactive donut chart that details the composition of the company's costs. It reveals the underlying structure of the operating expenses, highlighting major contributors like "Warehouse Rent" (78.69%).
+### 🚚 Supply Chain Management
 
-* **Working Capital Trend**: A sophisticated combination chart that plots the company's liquid Cash Balance against its short-term liabilities (Historical AP Balance). This visual is key for analyzing liquidity and managing cash flow effectively.
+- **Multi-Vendor System**: Choose from suppliers with different terms
+- **Lead Time Simulation**: Orders arrive after realistic delays
+- **Shipping Calculations**: Distance-based and value-based shipping costs
+- **Vendor Relationships**: Build rapport to unlock better suppliers
 
-* **Date Slicer**: A full-report slicer allows the user to dynamically filter the entire dashboard to analyze performance over specific time periods, from a single quarter to the entire life of the business.
+### 💼 Business Operations
 
-## 2. The Supply Chain & Operations Dashboard
+- **Marketing Campaigns**: Launch targeted promotions to boost demand
+- **Loan System**: Access business financing with realistic APR and terms
+- **Recurring Expenses**: Rent, utilities, and operational costs
+- **Pricing Control**: Set product prices and see immediate impact on sales
 
+### 🖥️ User Interfaces
 
-![Sales Tab](screenshots/SupplyChain&Operations10.02.25.jpg)
-Objective: To provide deep, actionable insights into the operational side of the business. This dashboard connects physical activities—like ordering from vendors and managing stock—to their direct financial impact, helping to optimize inventory and supplier relationships.
+- **Web Dashboard**: Multi-page React interface with real-time data
+- **Terminal CLI**: Classic command-line interface for purists
+- **Power BI Integration**: Connect for advanced analytics and reporting
 
-* **Key Features & Insights**:
-Real-Time Validation KPIs: This dashboard includes cards for Total Debits and Total Credits. The centerpiece is an Accounting Equation card (Total Debits - Total Credits) that resolves to $0.00, providing a definitive, real-time validation of the simulation's double-entry accounting system integrity. A Company Equity card shows the business's true net worth.
+---
 
-* **Vendor Scorecard**: A detailed table that evaluates supplier performance based on Average Lead Time and On-Time Delivery %, allowing for data-driven decisions on which vendors to prioritize.
+## 🛠️ Tech Stack
 
-* **Live Stock Levels**: A table provides a real-time count of Quantity on Hand and Inventory Value for each product, serving as the central tool for making purchasing and stock management decisions.
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Backend** | Python 3 | Business logic and simulation engine |
+| **Database** | MySQL 8.0+ | Persistent data storage with referential integrity |
+| **API** | Flask + Flask-CORS | RESTful API for frontend communication |
+| **Frontend** | React 17 | Interactive single-page application |
+| **Styling** | Tailwind CSS | Modern, responsive UI design |
+| **Analytics** | Power BI | Business intelligence dashboards |
+| **Libraries** | `mysql-connector-python` | Database connectivity |
 
-* **Assets & Equity Chart**: A powerful stacked column and line chart that visualizes the accounting equation over time. The stacked columns show the composition of Total Assets (Cash + Inventory), while the integrated line shows the growth of Company Equity (Assets - Liabilities).
+---
 
-* **Interactive Slicers**: The entire report can be filtered by Vendor or product Category, enabling deep-dive analysis into the performance of specific product lines or the efficiency of individual suppliers.
-
-## Setup Instructions
+## 🚀 Getting Started
 
 ### Prerequisites
 
-* Python 3
-* A running MySQL server
+Before running Digital Harvest, ensure you have:
 
-### 1. Database Setup
+- **Python 3.8+** installed ([Download](https://www.python.org/downloads/))
+- **MySQL Server 8.0+** running locally or remotely ([Download](https://dev.mysql.com/downloads/))
+- A modern web browser (Chrome, Firefox, or Edge recommended)
 
-1.  Ensure your MySQL server is running.
-2.  Update the `DB_CONFIG` dictionary in `/src_v2/setup_v2.py`, `/src_v2/api_v2.py`, and '/srv_v2/engine_v2.py with your MySQL credentials (user, password, host, port).
+### Installation
 
-### 2. Install Dependencies
-
-Install the required Python package using the `requirements.txt` file:
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Initialize the Database
-Run the setup script **once** from your terminal. This will create the `digital_harvest` database, build the required tables, and populate the initial product catalog.
-```bash
-python src_v2/setup_v2.py
-```
-
-*Note: This script will completely drop and recreate the database each time it is run.*
-
-### 4. Run the Simulation
-You can run either the Web UI or the Terminal version.
-
-**To use the Web UI v2 (Recommended):**
-1. Start the backend API server:
+1. **Clone the repository**
    ```bash
-   python src_v2/api_v2.py
-   ```
-2. Start the local web server (in a separate terminal):
-   ```bash
-   cd C:\FarmFiles
-   python -m http.server 8080
-   ```
-   You should see: `Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...`
-3. Open your web browser and navigate to:
-   ```
-   http://localhost:8080/index_v2.html
+   git clone https://github.com/yourusername/digital-harvest.git
+   cd digital-harvest
    ```
 
-**To use the Terminal Application:**
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configure database connection**
+
+   Edit the `DB_CONFIG` dictionary in the following files with your MySQL credentials:
+   - `src/setup.py`
+   - `src/engine.py`
+   - `src/api.py`
+
+   ```python
+   DB_CONFIG = {
+       'user': 'your_username',
+       'password': 'your_password',
+       'host': 'localhost',
+       'port': 3306
+   }
+   ```
+
+4. **Initialize the database**
+
+   ⚠️ **Warning**: This will drop and recreate the `digital_harvest` database!
+
+   ```bash
+   python src/setup.py
+   ```
+
+   You should see output confirming table creation and initial data population.
+
+### Running the Application
+
+#### Option 1: Web Interface (Recommended)
+
+1. **Start the API server**
+   ```bash
+   python src/api.py
+   ```
+   You should see: `* Running on http://127.0.0.1:5000`
+
+2. **Open the interface**
+   - **Simple**: Double-click `index.html` to open directly in your browser
+   - **Server**: For better compatibility, run a local web server:
+     ```bash
+     python -m http.server 8080
+     ```
+     Then navigate to: `http://localhost:8080/index.html`
+
+#### Option 2: Terminal Interface
+
+For a classic command-line experience:
 ```bash
-python src_v2/cli_v2.py
+python src/cli.py
 ```
 
-**Note:** The web interfaces require both the API server (`api_v2.py`) and the local web server to be running simultaneously in separate terminal windows.
+Follow the on-screen prompts to manage your business day-by-day.
 
-## Database Schema
+---
 
-| Table Name | Description |
-| :--- | :--- |
-| `products` & `categories` | Stores the product catalog, including metadata used by the sales simulation AI. |
-| `inventory_ledger` | A perpetual log of all inventory movements. Each entry records the change in quantity, the value of the transaction, and the resulting quantity on hand. |
-| `financial_ledger` | A classic double-entry accounting ledger. Every business event creates corresponding debit and credit entries, ensuring the accounting equation remains in balance. |
+## 📊 Dashboard & Analytics
 
-## Project Structure
+### Web Interface Features
+
+The web dashboard provides six core sections:
+
+1. **📈 Dashboard** - KPIs, sales trends, and inventory breakdown
+2. **📦 Inventory** - Stock levels, pricing controls, and product filtering
+3. **🚚 Suppliers** - Vendor catalog, ordering interface, and relationship tracking
+4. **📢 Marketing** - Campaign launches and performance monitoring
+5. **🧾 Expenses** - Recurring cost tracking and analysis
+6. **🏦 Bank** - Loan offers and financing options
+
+### Power BI Analytics
+
+The simulation generates data ready for advanced analysis. Connect Power BI to the MySQL database for:
+
+#### 1. Executive Summary Dashboard
+
+![Executive Summary](screenshots/ExecutiveSummary10.02.25.jpg)
+
+**Purpose**: High-level financial health and profitability overview
+
+**Key Visualizations**:
+- **KPI Cards**: Cash, AP Due, Gross Profit, Net Profit
+- **Monthly P&L**: Revenue vs. Expenses with Net Profit trend
+- **Expense Breakdown**: Interactive donut chart of cost structure
+- **Working Capital Trend**: Cash balance vs. liabilities over time
+- **Date Slicer**: Filter the entire report by time period
+
+#### 2. Supply Chain & Operations Dashboard
+
+![Supply Chain Dashboard](screenshots/SupplyChain&Operations10.02.25.jpg)
+
+**Purpose**: Operational insights connecting physical activities to financial impact
+
+**Key Visualizations**:
+- **Accounting Validation**: Real-time verification of double-entry integrity (Total Debits - Total Credits = $0.00)
+- **Vendor Scorecard**: Performance metrics (lead time, on-time delivery %)
+- **Live Stock Levels**: Current quantity and value for each product
+- **Assets & Equity Chart**: Visualization of the accounting equation over time
+- **Interactive Slicers**: Filter by vendor or product category
+
+---
+
+## 🗄️ Database Architecture
+
+The database is designed with **normalization** and **referential integrity** in mind:
+
+### Core Tables
+
+| Table | Purpose |
+|-------|---------|
+| `products` | Product catalog with pricing and demand metadata |
+| `product_categories` | Hierarchical categorization (Linear, Tactile, Clicky switches) |
+| `vendors` | Supplier information (terms, location, minimums, relationships) |
+| `inventory_ledger` | **Perpetual inventory system** - every stock movement with running balances |
+| `financial_ledger` | **Double-entry accounting** - debits and credits for all transactions |
+| `purchase_orders` | Orders placed to vendors with tracking and status |
+| `purchase_order_items` | Line items for each PO |
+| `accounts_payable` | Outstanding bills to suppliers |
+| `expenses` | Recurring operational costs |
+| `loans` | Active financing with repayment schedules |
+| `marketing_campaigns` | Active promotions with duration and target |
+| `market_events` | Random demand-boosting events |
+| `business_state` | Current simulation state (date, cash on hand) |
+
+### Key Design Decisions
+
+- **Immutable Ledgers**: Financial and inventory ledgers are append-only for audit trails
+- **Running Balances**: Ledgers include calculated running balances for performance
+- **Foreign Keys**: Enforce referential integrity between all related entities
+- **Decimal Precision**: All monetary values use `DECIMAL(15,2)` for accuracy
+- **Date Tracking**: Every transaction includes timestamps for time-series analysis
+
+---
+
+## 📂 Project Structure
 
 ```
 digital-harvest/
-├── src/              # Original implementation
-├── src_v1/           # First new version
-├── src_v2/           # Enhanced v2 implementation (recommended)
-│   ├── engine_v2.py  # Core business simulation engine
-│   ├── api_v2.py     # Flask REST API
-│   ├── cli_v2.py     # Terminal interface
-│   └── setup_v2.py   # Database initialization
-├── index.html        # Simple working model
-├── index_v1.html     # Basic web interface with expenses
-├── index_v2.html     # Enhanced web interface with dashboard (recommended)
-└── screenshots/      # Dashboard examples
+├── src/                      # Main application code
+│   ├── engine.py            # Core simulation engine
+│   ├── api.py               # Flask REST API endpoints
+│   ├── cli.py               # Terminal interface
+│   └── setup.py             # Database initialization and seeding
+│
+├── index.html               # React-based web interface
+├── screenshots/             # Demo images and GIFs
+├── oldVersions/             # Archived legacy code
+├── requirements.txt         # Python dependencies
+└── README.md               # This file
 ```
 
-## What's New in v2
+---
 
-* **Multi-page Web Interface:** Dedicated pages for Dashboard, Inventory, Suppliers, Marketing, Expenses, and Banking
-* **Market Events:** Dynamic events that boost demand for specific product types
-* **Progressive Unlocks:** Products unlock as your business reaches revenue milestones
-* **Enhanced Vendor System:** Multiple suppliers with different terms, lead times, and relationships
-* **Loan System:** Access business financing with realistic terms
-* **Debug Tools:** Built-in debugging panels to monitor simulation activity
-* **Improved Sales Model:** More sophisticated demand calculation with product-specific attributes
+## 🗺️ Roadmap
+
+### Current Status
+- ✅ Full double-entry accounting system
+- ✅ Multi-vendor supply chain
+- ✅ Marketing campaigns
+- ✅ Loan system
+- ✅ Market events
+- ✅ Web UI with 6 pages
+- ✅ Power BI integration
+
+### Planned Enhancements
+- [ ] Employee hiring and payroll
+- [ ] Customer loyalty system
+- [ ] Seasonal inventory planning AI
+- [ ] Multi-location expansion
+- [ ] Tax accounting and reporting
+- [ ] Competitive market simulation
+- [ ] Export financial statements (PDF)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! This project is ideal for:
+- **Students** learning about databases, accounting, or web development
+- **Developers** interested in simulation engines or business logic
+- **Educators** looking for teaching tools
+
+### How to Contribute
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📜 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+## 📧 Contact
+
+**Matthew Jenkins**
+- GitHub: [@matthew-s-jenkins](https://github.com/matthew-s-jenkins)
+- Project Link: [https://github.com/matthew-s-jenkins/digital-harvest-sim](https://github.com/matthew-s-jenkins/digital-harvest-sim)
+
+---
+
+## 🙏 Acknowledgments
+
+- MySQL for providing a robust relational database
+- Flask for making API development straightforward
+- React and Tailwind CSS for enabling rapid UI development
+- Power BI for powerful data visualization capabilities
+
+---
+
+**Built with ❤️ and Python**
