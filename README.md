@@ -66,7 +66,7 @@ These dashboards are currently in the logic prototyping stage. They will be form
 ## 1. The Executive Summary Dashboard
 
 
-![Sales Tab](screenshots\ExecutiveSummary10.02.25.jpg)
+![Sales Tab](screenshots/ExecutiveSummary10.02.25.jpg)
 Objective: To provide a high-level, at-a-glance overview of the business's overall financial health and profitability. This dashboard is designed for strategic decision-making, answering the fundamental questions: "Are we profitable?" and "How is our financial position trending over time?"
 
 * **Key Features & Insights**:
@@ -83,7 +83,7 @@ Headline KPIs: Four prominent cards display the most critical real-time metrics:
 ## 2. The Supply Chain & Operations Dashboard
 
 
-![Sales Tab](screenshots\SupplyChain&Operations10.02.25.jpg)
+![Sales Tab](screenshots/SupplyChain&Operations10.02.25.jpg)
 Objective: To provide deep, actionable insights into the operational side of the business. This dashboard connects physical activities—like ordering from vendors and managing stock—to their direct financial impact, helping to optimize inventory and supplier relationships.
 
 * **Key Features & Insights**:
