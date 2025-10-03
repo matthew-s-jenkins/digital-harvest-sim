@@ -335,6 +335,34 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
+## 🔗 Related Projects
+
+### Perfect Books - Personal Finance Management
+
+Digital Harvest shares its **double-entry accounting foundation** with [Perfect Books](https://github.com/matthew-s-jenkins/perfect-books), a personal finance application.
+
+**Shared Principles:**
+- ✅ Double-entry accounting (Assets = Liabilities + Equity)
+- ✅ Immutable financial ledger with transaction UUIDs
+- ✅ BI-ready normalized database schema
+- ✅ Flask REST API architecture
+- ✅ React + Tailwind CSS frontend
+- ✅ MySQL database with referential integrity
+
+**Key Differences:**
+| Digital Harvest | Perfect Books |
+|-----------------|--------------|
+| Business simulation | Personal finance tracking |
+| Single-user simulation | Multi-user with authentication |
+| Simulated sales & purchasing | Real-world transactions |
+| Profitability & inventory focus | Budget & expense focus |
+| Progressive unlocks & market events | Recurring expenses & loan tracking |
+
+**Why This Matters:**
+Both projects prove that **accurate accounting** and **great user experience** can coexist. The shared architecture demonstrates these patterns work for both business and personal finance.
+
+---
+
 ## 📧 Contact
 
 **Matthew Jenkins**
