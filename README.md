@@ -34,21 +34,36 @@
 
 **Digital Harvest** is an interactive business simulation engine that models a retail business with **real-world accounting accuracy**. Unlike typical business games, this simulator maintains a complete **double-entry accounting system**, tracking every transaction through a financial ledger that follows GAAP principles.
 
-### The Vision
+### Why I Built This
+
+During my time as a Data Analyst at High Life Enterprises, I had access to rich sales data that revealed fascinating patterns - seasonal trends, weekly fluctuations, the impact of inventory decisions on profitability. I could build SQL queries and Power BI dashboards to analyze this data, but I wanted to take it further: what if I could generate that same kind of data on demand?
+
+The challenge was to create a simulation that produced realistic sales data I could analyze in Power BI, just like I did with real retail data. But to make the data meaningful, the underlying business model had to be accurate - proper inventory tracking, cost accounting, and double-entry bookkeeping. I couldn't fake the numbers; the simulation needed to work like a real business.
+
+Digital Harvest solves this by modeling every aspect of a retail operation:
+- **Demand simulation** with seasonal trends, weekly patterns, and random market events
+- **Inventory management** using perpetual inventory accounting
+- **Procurement decisions** with multiple vendors, lead times, and shipping costs
+- **Financial tracking** through a complete double-entry ledger system
+
+The result is a platform that generates authentic business data for analysis while teaching supply chain and financial management principles.
+
+### What It Does
 
 The project creates a "digital twin" of a retail business, allowing users to:
-- Make high-level strategic decisions about inventory, pricing, and marketing
-- See the immediate financial impact of their choices
-- Understand the connection between operations and profitability
+- Make strategic decisions about inventory purchasing, pricing, and marketing
+- See the immediate financial impact through real-time P&L and balance sheet updates
+- Analyze trends using Power BI dashboards connected to the live MySQL database
+- Understand the connection between operations (sales, inventory, procurement) and profitability
 - Learn business principles through hands-on experimentation
 
-### Why This Matters
+### Technical Highlights
 
-Most business simulations simplify or ignore accounting. Digital Harvest proves that you can have both **engaging gameplay** and **financial accuracy**. The normalized database schema makes it perfect for:
-- 📊 **Business Intelligence**: Connect Power BI for real-time dashboards
-- 📚 **Education**: Learn accounting principles through interactive simulation
-- 🔬 **Analysis**: Answer complex questions like "Which vendor maximizes ROI?"
-- 🎮 **Entertainment**: Experience the satisfaction of building a profitable business
+- **Double-Entry Accounting**: Every transaction creates balanced DR/CR entries following GAAP principles
+- **Perpetual Inventory System**: Real-time quantity tracking with FIFO cost accounting
+- **Demand Modeling**: Sales engine with configurable trends, seasonality, and market events
+- **Power BI Integration**: Normalized database schema designed for direct BI connectivity
+- **Stateless API Architecture**: Flask REST API enables both web and terminal interfaces
 
 **Explore the Stories:** I've documented interesting scenarios and discoveries from the simulation [here](https://matthew-s-jenkins.github.io/digital-harvest-sim/stories/index.html).
 
@@ -61,6 +76,54 @@ Most business simulations simplify or ignore accounting. Digital Harvest proves 
 ![Business UI Demo](screenshots/Business_UI.gif)
 
 *Real-time inventory management, supplier negotiations, marketing campaigns, and financial tracking—all in one intuitive dashboard.*
+
+---
+
+## Technical Challenges Solved
+
+### 1. Realistic Demand Modeling
+
+Creating authentic sales patterns required modeling multiple layers of variability:
+
+- **Long-term growth trends**: Gradual business expansion over time
+- **Seasonal patterns**: Products sell differently in summer vs. winter
+- **Weekly fluctuations**: Weekend vs. weekday shopping behaviors
+- **Random market events**: Temporary boosts to specific product categories
+
+The demand engine combines these factors using weighted algorithms that mirror real retail patterns I observed while working with actual sales data. This produces data realistic enough for meaningful Power BI analysis.
+
+### 2. Perpetual Inventory with FIFO Costing
+
+Tracking inventory value requires knowing not just quantity, but the cost of each unit sold. I implemented:
+
+- **FIFO (First-In, First-Out) accounting**: Oldest inventory sells first
+- **Layered cost tracking**: Each purchase creates a new cost layer
+- **Automated COGS calculation**: Cost of Goods Sold updates automatically as sales occur
+- **Inventory valuation**: Real-time inventory value based on remaining cost layers
+
+This matches how real businesses track inventory and ensures accurate profitability calculations.
+
+### 3. Supply Chain Lead Time Management
+
+Orders don't arrive instantly in the real world. The simulation includes:
+
+- **Distance-based lead times**: Further suppliers take longer to ship
+- **In-transit order tracking**: Visibility into pending inventory
+- **Stockout risk**: Running out of inventory impacts sales
+- **Order optimization**: Balancing inventory carrying costs vs. stockout risk
+
+This creates realistic procurement challenges similar to those in actual supply chain management.
+
+### 4. Power BI Database Integration
+
+Designed the MySQL schema specifically for BI connectivity:
+
+- **Star schema patterns**: Fact tables (transactions, sales) with dimension tables (products, vendors)
+- **Normalized design**: Minimizes data redundancy while maintaining query performance
+- **Date dimensions**: Enables time-based analysis and trends
+- **Calculated metrics**: Pre-computed aggregations for dashboard performance
+
+The schema supports complex analytics like vendor ROI analysis, product profitability trends, and inventory turnover rates.
 
 ---
 
@@ -380,4 +443,4 @@ Both projects prove that **accurate accounting** and **great user experience** c
 
 ---
 
-**Built with ❤️ and Python**
+**Built with Python**
