@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Harvest v2</title>
+    <title>Digital Harvest</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
@@ -14,7 +14,7 @@
 
     <script type="text/babel">
         const { useState, useEffect, useCallback, useMemo } = React;
-        const API_BASE_URL = 'http://127.0.0.1:5000';
+        const API_BASE_URL = 'http://127.0.0.1:5002';
         
         // --- HELPER & GENERIC COMPONENTS ---
         const SalesChart = ({ data }) => {
@@ -846,7 +846,7 @@
                 }
             };
             
-            if (error) return ( <div className="p-8 text-center text-red-400 bg-red-900 border border-red-400 rounded-lg m-4"><h2 className="text-2xl font-bold">Connection Error</h2><p className="mt-2">Could not connect to the simulation engine.</p><p className="font-mono mt-4 bg-gray-800 p-2 rounded">{error}</p><p className="mt-4">Please make sure the `api_v2.py` server is running and the database is set up.</p></div> );
+            if (error) return ( <div className="p-8 text-center text-red-400 bg-red-900 border border-red-400 rounded-lg m-4"><h2 className="text-2xl font-bold">Connection Error</h2><p className="mt-2">Could not connect to the simulation engine.</p><p className="font-mono mt-4 bg-gray-800 p-2 rounded">{error}</p><p className="mt-4">Please make sure the `api.py` server is running on port 5002 and the database is set up.</p></div> );
             if (!status) return <div className="p-8 text-center">Loading Simulation...</div>;
 
             return (
