@@ -36,7 +36,7 @@ class CustomEncoder(json.JSONEncoder):
 
 
 # --- FLASK APP SETUP ---
-app = Flask(__name__)
+app = Flask(__name__, static_folder='..', static_url_path='')
 app.json_encoder = CustomEncoder
 
 # Enable CORS to allow the web interface to make requests from a different origin
@@ -63,6 +63,16 @@ def check_sim(func):
     wrapper.__name__ = func.__name__
     return wrapper
 
+
+# =============================================================================
+# STATIC FILE ROUTES
+# =============================================================================
+
+@app.route('/')
+def index():
+    """Serve the main index page."""
+    from flask import send_from_directory
+    return send_from_directory('..', 'index.html')
 
 # =============================================================================
 # GET ENDPOINTS - Data Retrieval
@@ -251,4 +261,4 @@ def launch_campaign():
 if __name__ == '__main__':
     # Setting debug=True gives you helpful error messages in the browser
     # and automatically reloads the server when you save changes.
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5002)
