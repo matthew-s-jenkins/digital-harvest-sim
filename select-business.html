@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Harvest - Choose Your Business</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --color-bg: #0f172a;
+            --color-bg-secondary: #1e293b;
+            --color-bg-tertiary: #334155;
+            --color-text: #f1f5f9;
+            --color-text-secondary: #cbd5e1;
+            --color-text-muted: #94a3b8;
+            --color-primary: #10b981;
+            --color-primary-hover: #059669;
+            --color-accent: #f59e0b;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+
+        .business-card {
+            transition: all 0.3s ease;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .business-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border-color: var(--color-primary);
+        }
+
+        .business-card.selected {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .volatility-low { color: #22c55e; }
+        .volatility-medium { color: #f59e0b; }
+        .volatility-high { color: #ef4444; }
+
+        .icon-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin-bottom: 1rem;
+        }
+
+        .keyboards-icon { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+        .tech-icon { background: linear-gradient(135deg, #0ea5e9, #06b6d4); }
+        .farm-icon { background: linear-gradient(135deg, #22c55e, #84cc16); }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const BUSINESS_ICONS = {
+            'keyboards': '⌨️',
+            'tech': '💻',
+            'farm': '🌱'
+        };
+
+        const BUSINESS_DESCRIPTIONS = {
+            'keyboards': {
+                tagline: 'Build the perfect typing experience',
+                details: 'Source mechanical switches, keycaps, and components. Build and sell custom keyboards to enthusiasts. Medium volatility with steady demand.',
+                features: ['7 unique products', '8 vendors to choose from', 'Moderate market swings']
+            },
+            'tech': {
+                tagline: 'Ride the waves of tech innovation',
+                details: 'Deal in GPUs, processors, and vintage computing gear. High risk, high reward. Market events can make or break your business.',
+                features: ['8 cutting-edge products', '6 specialized vendors', 'Wild price fluctuations']
+            },
+            'farm': {
+                tagline: 'Grow sustainable, sell local',
+                details: 'Cultivate microgreens, herbs, and specialty vegetables. Stable demand with seasonal patterns. Perfect for building long-term success.',
+                features: ['9 fresh products', '6 local suppliers', 'Steady, reliable growth']
+            }
+        };
+
+        function App() {
+            const [businesses, setBusinesses] = useState([]);
+            const [selectedBusiness, setSelectedBusiness] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [starting, setStarting] = useState(false);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                fetchBusinesses();
+            }, []);
+
+            const fetchBusinesses = async () => {
+                try {
+                    const res = await fetch('/api/game/businesses', { credentials: 'include' });
+                    if (res.status === 401) {
+                        window.location.href = '/login';
+                        return;
+                    }
+                    const data = await res.json();
+                    setBusinesses(data);
+                    setLoading(false);
+                } catch (err) {
+                    setError('Failed to load businesses');
+                    setLoading(false);
+                }
+            };
+
+            const startGame = async () => {
+                if (!selectedBusiness) return;
+
+                setStarting(true);
+                try {
+                    const res = await fetch('/api/game/start', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ business_id: selectedBusiness.business_id })
+                    });
+
+                    const data = await res.json();
+                    if (data.success) {
+                        // Store selected business in localStorage for the dashboard
+                        localStorage.setItem('selectedBusinessId', selectedBusiness.business_id);
+                        localStorage.setItem('selectedBusinessName', selectedBusiness.name);
+                        window.location.href = '/game';
+                    } else {
+                        setError(data.message);
+                        setStarting(false);
+                    }
+                } catch (err) {
+                    setError('Failed to start game');
+                    setStarting(false);
+                }
+            };
+
+            const getBusinessKey = (name) => {
+                if (name.toLowerCase().includes('keyboard') || name.toLowerCase().includes('clicky')) return 'keyboards';
+                if (name.toLowerCase().includes('tech') || name.toLowerCase().includes('silicon')) return 'tech';
+                if (name.toLowerCase().includes('farm') || name.toLowerCase().includes('seed') || name.toLowerCase().includes('heritage')) return 'farm';
+                return 'keyboards';
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="text-4xl mb-4 floating">🌾</div>
+                            <p className="text-gray-400">Loading businesses...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-8">
+                    {/* Header */}
+                    <div className="text-center mb-12">
+                        <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+                            Digital Harvest
+                        </h1>
+                        <p className="text-xl text-gray-400">Choose your business empire</p>
+                    </div>
+
+                    {error && (
+                        <div className="max-w-md mx-auto mb-8 p-4 bg-red-900/50 border border-red-500 rounded-lg text-center">
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Business Cards */}
+                    <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8 mb-12">
+                        {businesses.map((business) => {
+                            const key = getBusinessKey(business.name);
+                            const info = BUSINESS_DESCRIPTIONS[key];
+                            const isSelected = selectedBusiness?.business_id === business.business_id;
+
+                            return (
+                                <div
+                                    key={business.business_id}
+                                    className={`business-card rounded-2xl p-6 cursor-pointer ${isSelected ? 'selected' : ''}`}
+                                    onClick={() => setSelectedBusiness(business)}
+                                >
+                                    {/* Icon */}
+                                    <div className="flex justify-center">
+                                        <div className={`icon-container ${key}-icon`}>
+                                            {BUSINESS_ICONS[key]}
+                                        </div>
+                                    </div>
+
+                                    {/* Title */}
+                                    <h2 className="text-2xl font-bold text-center mb-2">{business.name}</h2>
+                                    <p className="text-center text-gray-400 text-sm mb-4">{info?.tagline}</p>
+
+                                    {/* Description */}
+                                    <p className="text-gray-300 text-sm mb-4">{business.description || info?.details}</p>
+
+                                    {/* Stats */}
+                                    <div className="space-y-2 mb-4">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-400">Starting Cash</span>
+                                            <span className="text-green-400 font-mono">
+                                                ${business.starting_cash?.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-400">Volatility</span>
+                                            <span className={`font-semibold volatility-${business.volatility?.toLowerCase()}`}>
+                                                {business.volatility}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Features */}
+                                    {info?.features && (
+                                        <ul className="text-xs text-gray-400 space-y-1">
+                                            {info.features.map((f, i) => (
+                                                <li key={i} className="flex items-center gap-2">
+                                                    <span className="text-green-400">✓</span> {f}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+
+                                    {/* Selected Indicator */}
+                                    {isSelected && (
+                                        <div className="mt-4 text-center">
+                                            <span className="inline-block px-4 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold">
+                                                ✓ Selected
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Start Button */}
+                    <div className="text-center">
+                        <button
+                            onClick={startGame}
+                            disabled={!selectedBusiness || starting}
+                            className={`px-12 py-4 rounded-xl text-xl font-bold transition-all ${
+                                selectedBusiness
+                                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-lg hover:shadow-green-500/25'
+                                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                            }`}
+                        >
+                            {starting ? (
+                                <span className="flex items-center gap-2">
+                                    <span className="animate-spin">⏳</span> Starting...
+                                </span>
+                            ) : selectedBusiness ? (
+                                `Start ${selectedBusiness.name}`
+                            ) : (
+                                'Select a Business'
+                            )}
+                        </button>
+
+                        {selectedBusiness && (
+                            <p className="mt-4 text-gray-500 text-sm">
+                                You'll start with ${selectedBusiness.starting_cash?.toLocaleString()} in cash
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="text-center mt-16 text-gray-500 text-sm">
+                        <p>Digital Harvest v5 - Built on Perfect Books</p>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

@@ -1,12 +1,29 @@
-Python cache files and virtual environments
-pycache/
+# Python cache files and virtual environments
+__pycache__/
 *.pyc
 venv/
 *.env
 
-System files
+# System files
 .DS_Store
+nul
 
-IDE configuration files
+# IDE configuration files
 .vscode/
 .idea/
+
+# Archive folders (keep locally, don't push to repo)
+oldVersions/
+documents/
+
+# Database files
+*.db
+
+# Data directories (contain user data)
+src/data/
+
+# Backup files
+*.mysql_backup
+
+# Migrations (applied via migration_runner.py)
+src/migrations/
