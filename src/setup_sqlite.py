@@ -659,6 +659,14 @@ def create_database():
         print("[OK] Database schema created successfully!")
         print(f"[OK] Database file: {db_path}")
 
+        # Seed the database with initial data (businesses, products, vendors)
+        try:
+            from seed_data import seed_all
+            seed_all()
+        except ImportError:
+            from src.seed_data import seed_all
+            seed_all()
+
         return True
 
     except sqlite3.Error as err:
