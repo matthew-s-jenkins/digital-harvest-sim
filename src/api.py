@@ -2126,4 +2126,4 @@ def get_daily_summary_api():
 
 # --- RUN THE APP ---
 if __name__ == '__main__':
-    app.run(debug=True, port=8888, use_reloader=False)
+    app.run(debug=True, port=5002, use_reloader=False)

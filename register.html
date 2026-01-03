@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Perfect Books</title>
+    <title>Register - Digital Harvest</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
@@ -97,13 +97,8 @@
                     const result = await response.json();
 
                     if (response.ok) {
-                        // Registration was successful, user is now logged in.
-                        // The API response tells us if setup is needed.
-                        if (result.setup_needed) {
-                            window.location.href = 'setup.html';
-                        } else {
-                            window.location.href = 'index.html';
-                        }
+                        // Registration successful - go to business selection
+                        window.location.href = 'select-business.html';
                     } else {
                         setError(result.message);
                     }
