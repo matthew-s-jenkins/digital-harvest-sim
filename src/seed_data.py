@@ -15,7 +15,11 @@ License: MIT
 
 import sqlite3
 from pathlib import Path
-from setup_sqlite import get_db_path
+
+try:
+    from setup_sqlite import get_db_path
+except ImportError:
+    from src.setup_sqlite import get_db_path
 
 
 def seed_businesses(cursor):
