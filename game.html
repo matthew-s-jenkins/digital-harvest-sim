@@ -642,13 +642,20 @@
             const [vendorProducts, setVendorProducts] = useState([]);
             const [orderItems, setOrderItems] = useState({});
             const [ordering, setOrdering] = useState(false);
+            const mountedRef = useRef(true);
+
+            useEffect(() => {
+                return () => { mountedRef.current = false; };
+            }, []);
 
             const loadVendorProducts = async (vendorId) => {
                 try {
                     const res = await fetch(`/api/game/vendors/${vendorId}/products`, { credentials: 'include' });
                     const data = await res.json();
-                    setVendorProducts(data);
-                    setOrderItems({});
+                    if (mountedRef.current) {
+                        setVendorProducts(data);
+                        setOrderItems({});
+                    }
                 } catch (err) {
                     console.error('Failed to load vendor products:', err);
                 }
@@ -692,6 +699,8 @@
                     });
 
                     const data = await res.json();
+                    if (!mountedRef.current) return;
+
                     if (data.success) {
                         setOrderItems({});
                         onOrderPlaced();
@@ -701,9 +710,9 @@
                     }
                 } catch (err) {
                     console.error('Failed to place order:', err);
-                    showToast('Failed to place order', 'error');
+                    if (mountedRef.current) showToast('Failed to place order', 'error');
                 }
-                setOrdering(false);
+                if (mountedRef.current) setOrdering(false);
             };
 
             return (
