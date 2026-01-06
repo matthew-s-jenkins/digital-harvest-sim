@@ -65,19 +65,21 @@ def seed_keyboards_data(cursor, business_id):
     cat_map = {row[1]: row[0] for row in cursor.fetchall()}
 
     # Products - using attribute_1 for switch_type, attribute_2 for feel, attribute_3 for sound
+    # NOTE: base_demand reduced for balanced gameplay (was 200-350, now 80-150)
+    # Keyboard switches are cheap so higher volume is appropriate
     products = [
         # Linear Switches
-        (business_id, cat_map['Linear Switches'], 'Gateron Red', 'GAT-RED', 320, 1.3, '0.65', 'UNLOCKED', None, 'LINEAR', 'LIGHT', 'QUIET'),
-        (business_id, cat_map['Linear Switches'], 'Gateron Yellow', 'GAT-YEL', 280, 1.4, '0.65', 'UNLOCKED', None, 'LINEAR', 'MEDIUM', 'QUIET'),
-        (business_id, cat_map['Linear Switches'], 'Cherry MX Black', 'CHR-BLK', 200, 1.1, '1.25', 'LOCKED', '25000', 'LINEAR', 'HEAVY', 'MODERATE'),
+        (business_id, cat_map['Linear Switches'], 'Gateron Red', 'GAT-RED', 120, 1.3, '0.65', 'UNLOCKED', None, 'LINEAR', 'LIGHT', 'QUIET'),
+        (business_id, cat_map['Linear Switches'], 'Gateron Yellow', 'GAT-YEL', 100, 1.4, '0.65', 'UNLOCKED', None, 'LINEAR', 'MEDIUM', 'QUIET'),
+        (business_id, cat_map['Linear Switches'], 'Cherry MX Black', 'CHR-BLK', 80, 1.1, '1.25', 'LOCKED', '25000', 'LINEAR', 'HEAVY', 'MODERATE'),
 
         # Tactile Switches
-        (business_id, cat_map['Tactile Switches'], 'Gateron Brown', 'GAT-BRN', 350, 1.5, '0.65', 'UNLOCKED', None, 'TACTILE', 'LIGHT', 'MODERATE'),
-        (business_id, cat_map['Tactile Switches'], 'Cherry MX Brown', 'CHR-BRN', 300, 1.2, '1.05', 'LOCKED', '15000', 'TACTILE', 'MEDIUM', 'MODERATE'),
+        (business_id, cat_map['Tactile Switches'], 'Gateron Brown', 'GAT-BRN', 150, 1.5, '0.65', 'UNLOCKED', None, 'TACTILE', 'LIGHT', 'MODERATE'),
+        (business_id, cat_map['Tactile Switches'], 'Cherry MX Brown', 'CHR-BRN', 120, 1.2, '1.05', 'LOCKED', '15000', 'TACTILE', 'MEDIUM', 'MODERATE'),
 
         # Clicky Switches
-        (business_id, cat_map['Clicky Switches'], 'Kailh Box White', 'KAI-WHT', 250, 1.6, '0.75', 'UNLOCKED', None, 'CLICKY', 'LIGHT', 'LOUD'),
-        (business_id, cat_map['Clicky Switches'], 'Cherry MX Blue', 'CHR-BLU', 280, 1.1, '1.05', 'LOCKED', '10000', 'CLICKY', 'MEDIUM', 'LOUD'),
+        (business_id, cat_map['Clicky Switches'], 'Kailh Box White', 'KAI-WHT', 100, 1.6, '0.75', 'UNLOCKED', None, 'CLICKY', 'LIGHT', 'LOUD'),
+        (business_id, cat_map['Clicky Switches'], 'Cherry MX Blue', 'CHR-BLU', 110, 1.1, '1.05', 'LOCKED', '10000', 'CLICKY', 'MEDIUM', 'LOUD'),
     ]
     cursor.executemany("""
         INSERT OR IGNORE INTO products (business_id, category_id, name, sku, base_demand, price_sensitivity, default_price, status, unlock_revenue, attribute_1, attribute_2, attribute_3)
@@ -180,20 +182,22 @@ def seed_tech_data(cursor, business_id):
     cat_map = {row[1]: row[0] for row in cursor.fetchall()}
 
     # Products - attribute_1: generation, attribute_2: tier, attribute_3: power_draw
+    # NOTE: base_demand values reduced for balanced gameplay (was 80-200, now 5-25)
+    # With maturity factor starting at 5%, day 1 sales will be very low
     products = [
-        # Graphics Cards
-        (business_id, cat_map['Graphics Cards'], 'Mining GPU RX 580', 'GPU-RX580', 150, 2.0, '180.00', 'UNLOCKED', None, 'LAST_GEN', 'MID', 'HIGH'),
-        (business_id, cat_map['Graphics Cards'], 'RTX 3070 Ti', 'GPU-3070TI', 80, 1.8, '450.00', 'UNLOCKED', None, 'CURRENT', 'HIGH', 'HIGH'),
-        (business_id, cat_map['Graphics Cards'], 'RTX 4090', 'GPU-4090', 30, 1.5, '1600.00', 'LOCKED', '50000', 'CURRENT', 'FLAGSHIP', 'EXTREME'),
+        # Graphics Cards (high value = low volume)
+        (business_id, cat_map['Graphics Cards'], 'Mining GPU RX 580', 'GPU-RX580', 15, 2.0, '180.00', 'UNLOCKED', None, 'LAST_GEN', 'MID', 'HIGH'),
+        (business_id, cat_map['Graphics Cards'], 'RTX 3070 Ti', 'GPU-3070TI', 8, 1.8, '450.00', 'UNLOCKED', None, 'CURRENT', 'HIGH', 'HIGH'),
+        (business_id, cat_map['Graphics Cards'], 'RTX 4090', 'GPU-4090', 3, 1.5, '1600.00', 'LOCKED', '50000', 'CURRENT', 'FLAGSHIP', 'EXTREME'),
 
-        # Server Components
-        (business_id, cat_map['Server Components'], 'ECC RAM 32GB', 'RAM-ECC32', 200, 1.6, '95.00', 'UNLOCKED', None, 'DDR4', 'SERVER', 'LOW'),
-        (business_id, cat_map['Server Components'], 'Xeon E5-2680', 'CPU-XEON', 120, 1.4, '150.00', 'UNLOCKED', None, 'LAST_GEN', 'SERVER', 'MEDIUM'),
-        (business_id, cat_map['Server Components'], 'NVMe 2TB Enterprise', 'SSD-ENT2T', 100, 1.7, '280.00', 'LOCKED', '25000', 'CURRENT', 'ENTERPRISE', 'LOW'),
+        # Server Components (moderate volume)
+        (business_id, cat_map['Server Components'], 'ECC RAM 32GB', 'RAM-ECC32', 25, 1.6, '95.00', 'UNLOCKED', None, 'DDR4', 'SERVER', 'LOW'),
+        (business_id, cat_map['Server Components'], 'Xeon E5-2680', 'CPU-XEON', 12, 1.4, '150.00', 'UNLOCKED', None, 'LAST_GEN', 'SERVER', 'MEDIUM'),
+        (business_id, cat_map['Server Components'], 'NVMe 2TB Enterprise', 'SSD-ENT2T', 10, 1.7, '280.00', 'LOCKED', '25000', 'CURRENT', 'ENTERPRISE', 'LOW'),
 
-        # Vintage Parts
-        (business_id, cat_map['Vintage Parts'], '3dfx Voodoo 2', 'VIN-V2', 20, 1.2, '250.00', 'UNLOCKED', None, 'VINTAGE', 'COLLECTOR', 'LOW'),
-        (business_id, cat_map['Vintage Parts'], 'Sound Blaster AWE64', 'VIN-SB64', 35, 1.3, '80.00', 'UNLOCKED', None, 'VINTAGE', 'COLLECTOR', 'LOW'),
+        # Vintage Parts (niche, very low volume)
+        (business_id, cat_map['Vintage Parts'], '3dfx Voodoo 2', 'VIN-V2', 2, 1.2, '250.00', 'UNLOCKED', None, 'VINTAGE', 'COLLECTOR', 'LOW'),
+        (business_id, cat_map['Vintage Parts'], 'Sound Blaster AWE64', 'VIN-SB64', 4, 1.3, '80.00', 'UNLOCKED', None, 'VINTAGE', 'COLLECTOR', 'LOW'),
     ]
     cursor.executemany("""
         INSERT OR IGNORE INTO products (business_id, category_id, name, sku, base_demand, price_sensitivity, default_price, status, unlock_revenue, attribute_1, attribute_2, attribute_3)
@@ -279,21 +283,23 @@ def seed_farm_data(cursor, business_id):
     cat_map = {row[1]: row[0] for row in cursor.fetchall()}
 
     # Products - attribute_1: grow_time, attribute_2: shelf_life, attribute_3: light_needs
+    # NOTE: base_demand reduced for balanced gameplay (was 200-500, now 60-150)
+    # Farm products are mid-priced, moderate volume
     products = [
         # Leafy Greens
-        (business_id, cat_map['Leafy Greens'], 'Butter Lettuce', 'LG-BUTTER', 400, 1.2, '3.50', 'UNLOCKED', None, '30_DAYS', '7_DAYS', 'MEDIUM'),
-        (business_id, cat_map['Leafy Greens'], 'Red Romaine', 'LG-REDROM', 350, 1.3, '4.00', 'UNLOCKED', None, '35_DAYS', '10_DAYS', 'MEDIUM'),
-        (business_id, cat_map['Leafy Greens'], 'Tokyo Bekana', 'LG-TOKYO', 200, 1.4, '5.50', 'LOCKED', '20000', '25_DAYS', '5_DAYS', 'LOW'),
+        (business_id, cat_map['Leafy Greens'], 'Butter Lettuce', 'LG-BUTTER', 120, 1.2, '3.50', 'UNLOCKED', None, '30_DAYS', '7_DAYS', 'MEDIUM'),
+        (business_id, cat_map['Leafy Greens'], 'Red Romaine', 'LG-REDROM', 100, 1.3, '4.00', 'UNLOCKED', None, '35_DAYS', '10_DAYS', 'MEDIUM'),
+        (business_id, cat_map['Leafy Greens'], 'Tokyo Bekana', 'LG-TOKYO', 60, 1.4, '5.50', 'LOCKED', '20000', '25_DAYS', '5_DAYS', 'LOW'),
 
         # Herbs
-        (business_id, cat_map['Herbs'], 'Sweet Basil', 'HB-BASIL', 500, 1.1, '2.50', 'UNLOCKED', None, '21_DAYS', '5_DAYS', 'HIGH'),
-        (business_id, cat_map['Herbs'], 'Cilantro', 'HB-CILANT', 450, 1.2, '2.75', 'UNLOCKED', None, '21_DAYS', '7_DAYS', 'MEDIUM'),
-        (business_id, cat_map['Herbs'], 'Thai Basil', 'HB-THAI', 250, 1.3, '4.00', 'LOCKED', '15000', '28_DAYS', '5_DAYS', 'HIGH'),
+        (business_id, cat_map['Herbs'], 'Sweet Basil', 'HB-BASIL', 150, 1.1, '2.50', 'UNLOCKED', None, '21_DAYS', '5_DAYS', 'HIGH'),
+        (business_id, cat_map['Herbs'], 'Cilantro', 'HB-CILANT', 130, 1.2, '2.75', 'UNLOCKED', None, '21_DAYS', '7_DAYS', 'MEDIUM'),
+        (business_id, cat_map['Herbs'], 'Thai Basil', 'HB-THAI', 75, 1.3, '4.00', 'LOCKED', '15000', '28_DAYS', '5_DAYS', 'HIGH'),
 
         # Microgreens
-        (business_id, cat_map['Microgreens'], 'Sunflower Shoots', 'MG-SUNFL', 300, 1.4, '6.00', 'UNLOCKED', None, '10_DAYS', '5_DAYS', 'MEDIUM'),
-        (business_id, cat_map['Microgreens'], 'Pea Shoots', 'MG-PEA', 350, 1.3, '5.50', 'UNLOCKED', None, '12_DAYS', '7_DAYS', 'LOW'),
-        (business_id, cat_map['Microgreens'], 'Wasabi Microgreens', 'MG-WASABI', 100, 1.5, '12.00', 'LOCKED', '30000', '14_DAYS', '3_DAYS', 'HIGH'),
+        (business_id, cat_map['Microgreens'], 'Sunflower Shoots', 'MG-SUNFL', 90, 1.4, '6.00', 'UNLOCKED', None, '10_DAYS', '5_DAYS', 'MEDIUM'),
+        (business_id, cat_map['Microgreens'], 'Pea Shoots', 'MG-PEA', 100, 1.3, '5.50', 'UNLOCKED', None, '12_DAYS', '7_DAYS', 'LOW'),
+        (business_id, cat_map['Microgreens'], 'Wasabi Microgreens', 'MG-WASABI', 30, 1.5, '12.00', 'LOCKED', '30000', '14_DAYS', '3_DAYS', 'HIGH'),
     ]
     cursor.executemany("""
         INSERT OR IGNORE INTO products (business_id, category_id, name, sku, base_demand, price_sensitivity, default_price, status, unlock_revenue, attribute_1, attribute_2, attribute_3)

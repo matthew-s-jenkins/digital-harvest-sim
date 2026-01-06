@@ -17,7 +17,7 @@ Choose from three unique businesses:
 - 💻 **Silicon Orchard** - Tech parts and vintage computing
 - 🌱 **Heritage Seeds** - Vertical farm produce
 
-*Note: Demo runs on Heroku's free tier. Data resets periodically.*
+*Note: Demo runs on Heroku's free tier with ephemeral storage - data is not persistent and resets when the dyno restarts.*
 
 ---
 
@@ -66,7 +66,7 @@ chmod +x START_MAC.command
 ./START_MAC.command
 ```
 
-That's it! The game opens automatically in your browser at `http://127.0.0.1:5002`
+That's it! The game opens automatically in your browser at `http://localhost:5002`
 
 ### Requirements
 
@@ -103,6 +103,23 @@ pip install -r requirements.txt
 - **Lead Time Management** - Orders take time to arrive based on vendor distance
 - **Minimum Order Requirements** - Meet vendor minimums or pay more per unit
 - **Bill Payment** - Pay vendors on time or face cash flow challenges
+- **Business Maturity** - New businesses start slow and build customer base over 90 days
+
+### 📊 Analytics Dashboard
+
+Track your business performance with real-time analytics:
+- **Revenue & Profit Trends** - Interactive charts showing daily performance
+- **Units Sold** - Bar charts tracking sales volume over time
+- **Days Supply** - Know exactly how long your inventory will last
+- **Product Performance** - See which products are selling and which need attention
+
+### 📈 Three-Statement Financial Reporting
+
+Full professional accounting statements just like real businesses:
+- **Income Statement** - Revenue, COGS, Gross Profit, Operating Expenses, Net Income
+- **Balance Sheet** - Assets, Liabilities, Equity with A=L+E verification
+- **Cash Flow Statement** - Track where your cash comes from and goes
+- **Accounts Payable Aging** - See what bills are due and when
 
 ### 🔄 Multiple Businesses
 

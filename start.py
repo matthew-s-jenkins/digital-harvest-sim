@@ -268,7 +268,7 @@ def start_flask_server():
     print("Digital Harvest is running!")
     print("=" * 60)
     print()
-    print("  Server: http://127.0.0.1:5002")
+    print("  Server: http://localhost:5002")
     print("  Press Ctrl+C to stop the server")
     print()
 
@@ -276,7 +276,7 @@ def start_flask_server():
     def open_browser():
         time.sleep(1.5)
         try:
-            webbrowser.open("http://127.0.0.1:5002/login")
+            webbrowser.open("http://localhost:5002/login")
         except:
             pass  # Browser opening is optional
 
@@ -288,7 +288,7 @@ def start_flask_server():
 
     # Import and run Flask app
     from api import app
-    app.run(debug=False, port=5002, use_reloader=False)
+    app.run(host='localhost', debug=False, port=5002, use_reloader=False)
 
 
 def main():

@@ -178,7 +178,8 @@ def check_game_engine(func):
 @app.route('/')
 @login_required
 def serve_main_app():
-    return send_from_directory('../', 'index.html')
+    # Digital Harvest redirects to game page (no separate index)
+    return redirect('/game')
 
 @app.route('/login')
 def serve_login_page():
@@ -1720,13 +1721,29 @@ def advance_game_time_api():
 @check_game_engine
 @login_required
 def get_game_products_api():
-    """Get all products for a business with player settings."""
+    """Get all products for a business with player settings and days supply."""
     try:
         business_id = request.args.get('business_id', type=int)
         if not business_id:
             return jsonify({"error": "business_id is required"}), 400
 
         with game_engine.get_db() as conn:
+            # Get current game date
+            state = conn.execute("""
+                SELECT current_date FROM game_state
+                WHERE user_id = ? AND business_id = ?
+            """, (current_user.id, business_id)).fetchone()
+
+            current_date = state['current_date'][:10] if state else None
+
+            # Calculate date 7 days ago for avg sales
+            from datetime import datetime, timedelta
+            if current_date:
+                current_dt = datetime.strptime(current_date, '%Y-%m-%d')
+                date_7d_ago = (current_dt - timedelta(days=7)).strftime('%Y-%m-%d')
+            else:
+                date_7d_ago = None
+
             products = conn.execute("""
                 SELECT p.*,
                        pps.current_price,
@@ -1746,8 +1763,53 @@ def get_game_products_api():
                 ORDER BY c.name, p.name
             """, (current_user.id, current_user.id, business_id)).fetchall()
 
-            return jsonify([dict(p) for p in products])
+            result = []
+            for p in products:
+                product_dict = dict(p)
+                product_id = p['product_id']
+                stock = p['stock'] or 0
+
+                # Get on-order quantity
+                on_order_row = conn.execute("""
+                    SELECT COALESCE(SUM(poi.quantity), 0) as on_order
+                    FROM purchase_order_items poi
+                    JOIN purchase_orders po ON poi.order_id = po.order_id
+                    WHERE po.user_id = ? AND poi.product_id = ?
+                    AND po.status IN ('PENDING', 'ORDERED', 'IN_TRANSIT')
+                """, (current_user.id, product_id)).fetchone()
+                on_order = int(on_order_row['on_order'])
+
+                # Get avg daily sales (7 day)
+                avg_daily_sales = 0
+                if date_7d_ago:
+                    sales_row = conn.execute("""
+                        SELECT COALESCE(SUM(units_sold), 0) as total_sold
+                        FROM daily_sales_summary
+                        WHERE user_id = ? AND product_id = ? AND sale_date >= ?
+                    """, (current_user.id, product_id, date_7d_ago)).fetchone()
+                    total_sold_7d = int(sales_row['total_sold'])
+                    avg_daily_sales = total_sold_7d / 7.0 if total_sold_7d > 0 else 0
+
+                # Calculate days supply
+                available = stock + on_order
+                if avg_daily_sales > 0:
+                    days_supply = available / avg_daily_sales
+                elif p['base_demand'] and float(p['base_demand']) > 0:
+                    # Fallback estimate using base_demand
+                    days_supply = available / (float(p['base_demand']) * 0.2)
+                else:
+                    days_supply = None  # No sales data
+
+                product_dict['on_order'] = on_order
+                product_dict['avg_daily_sales'] = round(avg_daily_sales, 1)
+                product_dict['days_supply'] = round(days_supply, 1) if days_supply is not None else None
+
+                result.append(product_dict)
+
+            return jsonify(result)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/game/products/<int:product_id>/price', methods=['PUT'])
@@ -1812,11 +1874,22 @@ def get_game_vendors_api():
 @check_game_engine
 @login_required
 def get_vendor_products_api(vendor_id):
-    """Get all products offered by a vendor with their prices."""
+    """Get all products offered by a vendor with their prices, stock, and days supply."""
     try:
         with game_engine.get_db() as conn:
+            # Get vendor's business_id
+            vendor = conn.execute("""
+                SELECT business_id FROM vendors WHERE vendor_id = ?
+            """, (vendor_id,)).fetchone()
+
+            if not vendor:
+                return jsonify({"error": "Vendor not found"}), 404
+
+            business_id = vendor['business_id']
+
+            # Get products with base info
             products = conn.execute("""
-                SELECT vp.*, p.name, p.default_price,
+                SELECT vp.*, p.name, p.default_price, p.base_demand,
                        c.name as category_name
                 FROM vendor_products vp
                 JOIN products p ON vp.product_id = p.product_id
@@ -1825,8 +1898,78 @@ def get_vendor_products_api(vendor_id):
                 ORDER BY p.name
             """, (vendor_id,)).fetchall()
 
-            return jsonify([dict(p) for p in products])
+            # Get current game date for calculating date ranges
+            state = conn.execute("""
+                SELECT current_date FROM game_state
+                WHERE user_id = ? AND business_id = ?
+            """, (current_user.id, business_id)).fetchone()
+
+            if not state:
+                # No game state yet - just return basic product data
+                return jsonify([dict(p) for p in products])
+
+            current_date = state['current_date'][:10]
+
+            # Calculate date 7 days ago for average
+            from datetime import datetime, timedelta
+            current_dt = datetime.strptime(current_date, '%Y-%m-%d')
+            date_7d_ago = (current_dt - timedelta(days=7)).strftime('%Y-%m-%d')
+
+            result = []
+            for p in products:
+                product_dict = dict(p)
+                product_id = p['product_id']
+
+                # Get current stock (from inventory_layers)
+                stock_row = conn.execute("""
+                    SELECT COALESCE(SUM(quantity_remaining), 0) as stock
+                    FROM inventory_layers
+                    WHERE user_id = ? AND product_id = ? AND quantity_remaining > 0
+                """, (current_user.id, product_id)).fetchone()
+                stock = int(stock_row['stock'])
+
+                # Get on-order quantity (pending purchase orders)
+                on_order_row = conn.execute("""
+                    SELECT COALESCE(SUM(poi.quantity), 0) as on_order
+                    FROM purchase_order_items poi
+                    JOIN purchase_orders po ON poi.order_id = po.order_id
+                    WHERE po.user_id = ? AND poi.product_id = ?
+                    AND po.status IN ('PENDING', 'ORDERED')
+                """, (current_user.id, product_id)).fetchone()
+                on_order = int(on_order_row['on_order'])
+
+                # Get average daily sales over last 7 days
+                sales_row = conn.execute("""
+                    SELECT COALESCE(SUM(units_sold), 0) as total_sold
+                    FROM daily_sales_summary
+                    WHERE user_id = ? AND product_id = ? AND sale_date >= ?
+                """, (current_user.id, product_id, date_7d_ago)).fetchone()
+                total_sold_7d = int(sales_row['total_sold'])
+                avg_daily_sales = total_sold_7d / 7.0 if total_sold_7d > 0 else 0
+
+                # If no sales history, use base_demand as estimate (divided by maturity if early)
+                if avg_daily_sales == 0 and p['base_demand']:
+                    # Use 20% of base demand as conservative estimate for new products
+                    avg_daily_sales = float(p['base_demand']) * 0.2
+
+                # Calculate days supply
+                available = stock + on_order
+                if avg_daily_sales > 0:
+                    days_supply = available / avg_daily_sales
+                else:
+                    days_supply = float('inf') if available > 0 else 0
+
+                product_dict['stock'] = stock
+                product_dict['on_order'] = on_order
+                product_dict['avg_daily_sales'] = round(avg_daily_sales, 1)
+                product_dict['days_supply'] = round(days_supply, 1) if days_supply != float('inf') else None
+
+                result.append(product_dict)
+
+            return jsonify(result)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/game/purchase_order', methods=['POST'])
@@ -2013,35 +2156,62 @@ def get_game_inventory_api():
 @check_game_engine
 @login_required
 def get_game_financials_api():
-    """Get financial summary for the game (cash, revenue, expenses, profit)."""
+    """
+    Get comprehensive 3-statement financial data for the game.
+    Returns: Income Statement, Balance Sheet, and Cash Flow Statement.
+    """
     try:
         business_id = request.args.get('business_id', type=int)
         if not business_id:
             return jsonify({"error": "business_id is required"}), 400
 
         with game_engine.get_db() as conn:
-            # Get cash balance
-            cash = conn.execute("""
-                SELECT COALESCE(SUM(debit - credit), 0) as balance
-                FROM financial_ledger
-                WHERE user_id = ? AND business_id = ? AND account = 'Cash'
-            """, (current_user.id, business_id)).fetchone()
+            # =================================================================
+            # INCOME STATEMENT DATA
+            # =================================================================
 
-            # Get total revenue
+            # Get total revenue (Sales Revenue is credited)
             revenue = conn.execute("""
                 SELECT COALESCE(SUM(credit), 0) as total
                 FROM financial_ledger
                 WHERE user_id = ? AND business_id = ? AND account = 'Sales Revenue'
             """, (current_user.id, business_id)).fetchone()
 
-            # Get total COGS
+            # Get total COGS (Cost of Goods Sold is debited)
             cogs = conn.execute("""
                 SELECT COALESCE(SUM(debit), 0) as total
                 FROM financial_ledger
                 WHERE user_id = ? AND business_id = ? AND account = 'COGS'
             """, (current_user.id, business_id)).fetchone()
 
-            # Get inventory value
+            # Get operating expenses (marketing, rent, etc.)
+            operating_expenses = conn.execute("""
+                SELECT COALESCE(SUM(debit), 0) as total
+                FROM financial_ledger
+                WHERE user_id = ? AND business_id = ?
+                AND account IN ('Marketing Expense', 'Rent Expense', 'Operating Expense')
+            """, (current_user.id, business_id)).fetchone()
+
+            revenue_val = float(revenue['total'])
+            cogs_val = float(cogs['total'])
+            opex_val = float(operating_expenses['total'])
+            gross_profit = revenue_val - cogs_val
+            net_income = gross_profit - opex_val
+            gross_margin = (gross_profit / revenue_val * 100) if revenue_val > 0 else 0
+
+            # =================================================================
+            # BALANCE SHEET DATA
+            # =================================================================
+
+            # ASSETS
+            # Cash balance (debits increase cash, credits decrease)
+            cash = conn.execute("""
+                SELECT COALESCE(SUM(debit - credit), 0) as balance
+                FROM financial_ledger
+                WHERE user_id = ? AND business_id = ? AND account = 'Cash'
+            """, (current_user.id, business_id)).fetchone()
+
+            # Inventory value (at cost using FIFO layers)
             inventory = conn.execute("""
                 SELECT COALESCE(SUM(quantity_remaining * unit_cost), 0) as value
                 FROM inventory_layers
@@ -2049,7 +2219,12 @@ def get_game_financials_api():
                 AND product_id IN (SELECT product_id FROM products WHERE business_id = ?)
             """, (current_user.id, business_id)).fetchone()
 
-            # Get AP (unpaid bills) - join through vendor to get business_id
+            cash_val = float(cash['balance'])
+            inventory_val = float(inventory['value'])
+            total_assets = cash_val + inventory_val
+
+            # LIABILITIES
+            # Accounts Payable (unpaid vendor bills)
             ap = conn.execute("""
                 SELECT COALESCE(SUM(ap.amount_due), 0) as total
                 FROM accounts_payable ap
@@ -2057,16 +2232,166 @@ def get_game_financials_api():
                 WHERE ap.user_id = ? AND v.business_id = ? AND ap.status = 'UNPAID'
             """, (current_user.id, business_id)).fetchone()
 
-            gross_profit = float(revenue['total']) - float(cogs['total'])
+            # Get detailed AP breakdown by vendor with due dates
+            ap_details = conn.execute("""
+                SELECT ap.payable_id, v.name as vendor_name, ap.amount_due,
+                       ap.creation_date, ap.due_date, ap.status,
+                       po.order_id as po_number
+                FROM accounts_payable ap
+                JOIN vendors v ON ap.vendor_id = v.vendor_id
+                JOIN purchase_orders po ON ap.purchase_order_id = po.order_id
+                WHERE ap.user_id = ? AND v.business_id = ? AND ap.status = 'UNPAID'
+                ORDER BY ap.due_date ASC
+            """, (current_user.id, business_id)).fetchall()
+
+            ap_val = float(ap['total'])
+            total_liabilities = ap_val
+
+            # Build AP list with days until due
+            from datetime import datetime
+            current_date_str = conn.execute("""
+                SELECT current_date FROM game_state
+                WHERE user_id = ? AND business_id = ?
+            """, (current_user.id, business_id)).fetchone()
+
+            current_dt = datetime.strptime(current_date_str['current_date'][:10], '%Y-%m-%d') if current_date_str else datetime.now()
+
+            ap_list = []
+            for row in ap_details:
+                due_dt = datetime.strptime(row['due_date'][:10], '%Y-%m-%d')
+                days_until_due = (due_dt - current_dt).days
+                ap_list.append({
+                    'payable_id': row['payable_id'],
+                    'vendor_name': row['vendor_name'],
+                    'amount_due': float(row['amount_due']),
+                    'due_date': row['due_date'][:10],
+                    'days_until_due': days_until_due,
+                    'po_number': row['po_number'],
+                    'is_overdue': days_until_due < 0
+                })
+
+            # EQUITY
+            # Starting capital from game_state
+            starting_capital = conn.execute("""
+                SELECT COALESCE(starting_cash, '50000.00') as capital
+                FROM game_state
+                WHERE user_id = ? AND business_id = ?
+            """, (current_user.id, business_id)).fetchone()
+
+            starting_capital_val = float(starting_capital['capital']) if starting_capital else 50000.0
+
+            # Total Equity must equal Assets - Liabilities (accounting equation)
+            # This ensures the balance sheet always balances
+            total_equity = total_assets - total_liabilities
+
+            # Retained earnings is the difference between total equity and starting capital
+            # This represents all profits/losses accumulated since the business started
+            retained_earnings = total_equity - starting_capital_val
+
+            # Balance sheet is always balanced by definition (A = L + E)
+            balance_check = True
+
+            # =================================================================
+            # CASH FLOW STATEMENT DATA
+            # =================================================================
+
+            # Cash received from sales (debit to Cash from sales transactions)
+            cash_from_sales = conn.execute("""
+                SELECT COALESCE(SUM(debit), 0) as total
+                FROM financial_ledger
+                WHERE user_id = ? AND business_id = ?
+                AND account = 'Cash' AND description LIKE '%sale%'
+            """, (current_user.id, business_id)).fetchone()
+
+            # Cash paid for inventory (credit to Cash for purchases)
+            cash_for_inventory = conn.execute("""
+                SELECT COALESCE(SUM(credit), 0) as total
+                FROM financial_ledger
+                WHERE user_id = ? AND business_id = ?
+                AND account = 'Cash' AND (description LIKE '%purchase%' OR description LIKE '%PO%')
+            """, (current_user.id, business_id)).fetchone()
+
+            # Cash paid for AP (credit to Cash for bill payments)
+            cash_for_ap = conn.execute("""
+                SELECT COALESCE(SUM(credit), 0) as total
+                FROM financial_ledger
+                WHERE user_id = ? AND business_id = ?
+                AND account = 'Cash' AND description LIKE '%payment%'
+            """, (current_user.id, business_id)).fetchone()
+
+            # Cash paid for expenses (credit to Cash for marketing, etc.)
+            cash_for_expenses = conn.execute("""
+                SELECT COALESCE(SUM(credit), 0) as total
+                FROM financial_ledger
+                WHERE user_id = ? AND business_id = ?
+                AND account = 'Cash' AND description LIKE '%marketing%'
+            """, (current_user.id, business_id)).fetchone()
+
+            cash_from_sales_val = float(cash_from_sales['total'])
+            cash_for_inventory_val = float(cash_for_inventory['total'])
+            cash_for_ap_val = float(cash_for_ap['total'])
+            cash_for_expenses_val = float(cash_for_expenses['total'])
+
+            net_cash_from_operations = (cash_from_sales_val - cash_for_inventory_val
+                                        - cash_for_ap_val - cash_for_expenses_val)
+
+            beginning_cash = starting_capital_val
+            ending_cash = cash_val
 
             return jsonify({
-                "cash": float(cash['balance']),
-                "revenue": float(revenue['total']),
-                "cogs": float(cogs['total']),
+                # Legacy fields for backward compatibility
+                "cash": cash_val,
+                "revenue": revenue_val,
+                "cogs": cogs_val,
                 "gross_profit": gross_profit,
-                "inventory_value": float(inventory['value']),
-                "accounts_payable": float(ap['total']),
-                "net_worth": float(cash['balance']) + float(inventory['value']) - float(ap['total'])
+                "inventory_value": inventory_val,
+                "accounts_payable": ap_val,
+                "net_worth": total_equity,
+
+                # Income Statement
+                "income_statement": {
+                    "revenue": revenue_val,
+                    "cogs": cogs_val,
+                    "gross_profit": gross_profit,
+                    "gross_margin_percent": round(gross_margin, 1),
+                    "operating_expenses": opex_val,
+                    "net_income": net_income
+                },
+
+                # Balance Sheet
+                "balance_sheet": {
+                    "assets": {
+                        "cash": cash_val,
+                        "inventory": inventory_val,
+                        "total": total_assets
+                    },
+                    "liabilities": {
+                        "accounts_payable": ap_val,
+                        "total": total_liabilities
+                    },
+                    "equity": {
+                        "starting_capital": starting_capital_val,
+                        "retained_earnings": retained_earnings,
+                        "total": total_equity
+                    },
+                    "balanced": balance_check
+                },
+
+                # Cash Flow Statement
+                "cash_flow": {
+                    "operating_activities": {
+                        "cash_from_sales": cash_from_sales_val,
+                        "cash_for_inventory": -cash_for_inventory_val,
+                        "cash_for_ap_payments": -cash_for_ap_val,
+                        "cash_for_expenses": -cash_for_expenses_val,
+                        "net_cash_from_operations": net_cash_from_operations
+                    },
+                    "beginning_cash": beginning_cash,
+                    "ending_cash": ending_cash
+                },
+
+                # Accounts Payable Details
+                "accounts_payable_details": ap_list
             })
     except Exception as e:
         import traceback
@@ -2103,7 +2428,7 @@ def get_active_events_api():
 @check_game_engine
 @login_required
 def get_daily_summary_api():
-    """Get daily sales summary for charting."""
+    """Get daily sales summary for charting (aggregated by date)."""
     try:
         business_id = request.args.get('business_id', type=int)
         days = request.args.get('days', 30, type=int)
@@ -2112,17 +2437,223 @@ def get_daily_summary_api():
             return jsonify({"error": "business_id is required"}), 400
 
         with game_engine.get_db() as conn:
+            # Aggregate per-product data into daily totals
             summaries = conn.execute("""
-                SELECT date, total_revenue, total_cogs, total_units_sold
-                FROM daily_sales_summary
-                WHERE user_id = ? AND business_id = ?
-                ORDER BY date DESC
+                SELECT
+                    dss.sale_date as date,
+                    SUM(CAST(dss.revenue AS REAL)) as total_revenue,
+                    SUM(CAST(dss.cogs AS REAL)) as total_cogs,
+                    SUM(dss.units_sold) as total_units_sold
+                FROM daily_sales_summary dss
+                JOIN products p ON dss.product_id = p.product_id
+                WHERE dss.user_id = ? AND p.business_id = ?
+                GROUP BY dss.sale_date
+                ORDER BY dss.sale_date DESC
                 LIMIT ?
             """, (current_user.id, business_id, days)).fetchall()
 
             return jsonify([dict(s) for s in summaries])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/game/analytics', methods=['GET'])
+@check_game_engine
+@login_required
+def get_analytics_api():
+    """
+    Comprehensive analytics endpoint for the Analytics tab.
+
+    Returns:
+    - summary: Revenue/units metrics for today, 7-day, 30-day
+    - products: Per-product performance with stock, velocity, days supply
+    - maturity: Business maturity info (day X of 90)
+    """
+    try:
+        business_id = request.args.get('business_id', type=int)
+
+        if not business_id:
+            return jsonify({"error": "business_id is required"}), 400
+
+        with game_engine.get_db() as conn:
+            # Get game state for maturity calculation
+            state = conn.execute("""
+                SELECT current_date, created_at FROM game_state
+                WHERE user_id = ? AND business_id = ?
+            """, (current_user.id, business_id)).fetchone()
+
+            if not state:
+                return jsonify({"error": "No game state found"}), 404
+
+            current_date = state['current_date']
+            start_date = state['created_at'] or current_date
+
+            # Calculate days elapsed
+            from datetime import datetime
+            current_dt = datetime.strptime(current_date, '%Y-%m-%d')
+            start_dt = datetime.strptime(start_date.split(' ')[0], '%Y-%m-%d')
+            days_elapsed = (current_dt - start_dt).days
+
+            # Calculate date ranges
+            from datetime import timedelta
+            date_7d_ago = (current_dt - timedelta(days=7)).strftime('%Y-%m-%d')
+            date_30d_ago = (current_dt - timedelta(days=30)).strftime('%Y-%m-%d')
+
+            # Summary metrics - Today
+            today_stats = conn.execute("""
+                SELECT
+                    COALESCE(SUM(CAST(dss.revenue AS REAL)), 0) as revenue,
+                    COALESCE(SUM(CAST(dss.cogs AS REAL)), 0) as cogs,
+                    COALESCE(SUM(dss.units_sold), 0) as units
+                FROM daily_sales_summary dss
+                JOIN products p ON dss.product_id = p.product_id
+                WHERE dss.user_id = ? AND p.business_id = ? AND dss.sale_date = ?
+            """, (current_user.id, business_id, current_date)).fetchone()
+
+            # Summary metrics - 7 day
+            week_stats = conn.execute("""
+                SELECT
+                    COALESCE(SUM(CAST(dss.revenue AS REAL)), 0) as revenue,
+                    COALESCE(SUM(CAST(dss.cogs AS REAL)), 0) as cogs,
+                    COALESCE(SUM(dss.units_sold), 0) as units
+                FROM daily_sales_summary dss
+                JOIN products p ON dss.product_id = p.product_id
+                WHERE dss.user_id = ? AND p.business_id = ? AND dss.sale_date > ?
+            """, (current_user.id, business_id, date_7d_ago)).fetchone()
+
+            # Summary metrics - 30 day
+            month_stats = conn.execute("""
+                SELECT
+                    COALESCE(SUM(CAST(dss.revenue AS REAL)), 0) as revenue,
+                    COALESCE(SUM(CAST(dss.cogs AS REAL)), 0) as cogs,
+                    COALESCE(SUM(dss.units_sold), 0) as units
+                FROM daily_sales_summary dss
+                JOIN products p ON dss.product_id = p.product_id
+                WHERE dss.user_id = ? AND p.business_id = ? AND dss.sale_date > ?
+            """, (current_user.id, business_id, date_30d_ago)).fetchone()
+
+            # Calculate gross margin
+            revenue_30d = month_stats['revenue'] or 0
+            cogs_30d = month_stats['cogs'] or 0
+            gross_margin = ((revenue_30d - cogs_30d) / revenue_30d * 100) if revenue_30d > 0 else 0
+
+            summary = {
+                'revenue_today': round(today_stats['revenue'] or 0, 2),
+                'revenue_7d': round(week_stats['revenue'] or 0, 2),
+                'revenue_30d': round(revenue_30d, 2),
+                'units_today': today_stats['units'] or 0,
+                'units_7d': week_stats['units'] or 0,
+                'units_30d': month_stats['units'] or 0,
+                'gross_margin': round(gross_margin, 1),
+            }
+
+            # Per-product analytics with velocity
+            products = conn.execute("""
+                SELECT
+                    p.product_id,
+                    p.name,
+                    p.default_price,
+                    p.base_demand,
+                    COALESCE(SUM(il.quantity_remaining), 0) as stock,
+                    COALESCE((
+                        SELECT SUM(poi.quantity)
+                        FROM purchase_order_items poi
+                        JOIN purchase_orders po ON poi.order_id = po.order_id
+                        WHERE poi.product_id = p.product_id
+                          AND po.user_id = ?
+                          AND po.status IN ('PENDING', 'IN_TRANSIT')
+                    ), 0) as on_order,
+                    COALESCE((
+                        SELECT SUM(dss.units_sold) / 7.0
+                        FROM daily_sales_summary dss
+                        WHERE dss.product_id = p.product_id
+                          AND dss.user_id = ?
+                          AND dss.sale_date > ?
+                    ), 0) as avg_daily_sales,
+                    COALESCE((
+                        SELECT SUM(CAST(dss.revenue AS REAL))
+                        FROM daily_sales_summary dss
+                        WHERE dss.product_id = p.product_id
+                          AND dss.user_id = ?
+                          AND dss.sale_date > ?
+                    ), 0) as revenue_7d
+                FROM products p
+                LEFT JOIN inventory_layers il ON p.product_id = il.product_id
+                    AND il.user_id = ? AND il.quantity_remaining > 0
+                WHERE p.business_id = ? AND p.status = 'UNLOCKED'
+                GROUP BY p.product_id
+                ORDER BY p.name
+            """, (current_user.id, current_user.id, date_7d_ago, current_user.id, date_7d_ago, current_user.id, business_id)).fetchall()
+
+            product_list = []
+            for p in products:
+                stock = p['stock'] or 0
+                on_order = p['on_order'] or 0
+                avg_sales = p['avg_daily_sales'] or 0
+
+                # Calculate days supply (use base_demand as fallback if no sales history)
+                if avg_sales > 0:
+                    days_supply = (stock + on_order) / avg_sales
+                elif p['base_demand'] > 0:
+                    # Fallback to base_demand estimate (with maturity factor approximation)
+                    estimated_daily = p['base_demand'] * 0.3  # Rough maturity estimate
+                    days_supply = (stock + on_order) / estimated_daily if estimated_daily > 0 else 999
+                else:
+                    days_supply = 999  # No demand expected
+
+                product_list.append({
+                    'product_id': p['product_id'],
+                    'name': p['name'],
+                    'stock': stock,
+                    'on_order': on_order,
+                    'avg_daily_sales': round(avg_sales, 1),
+                    'days_supply': round(days_supply, 1) if days_supply < 999 else None,
+                    'revenue_7d': round(p['revenue_7d'] or 0, 2),
+                })
+
+            # Maturity info
+            from game_engine import MATURITY_DAYS, get_maturity_factor
+            maturity_percent = get_maturity_factor(days_elapsed) * 100
+
+            maturity = {
+                'current_day': days_elapsed,
+                'maturity_days': MATURITY_DAYS,
+                'maturity_percent': round(maturity_percent, 1),
+            }
+
+            # Daily history for charts (last 30 days)
+            daily_history = conn.execute("""
+                SELECT
+                    dss.sale_date,
+                    SUM(CAST(dss.revenue AS REAL)) as revenue,
+                    SUM(CAST(dss.cogs AS REAL)) as cogs,
+                    SUM(dss.units_sold) as units
+                FROM daily_sales_summary dss
+                JOIN products p ON dss.product_id = p.product_id
+                WHERE dss.user_id = ? AND p.business_id = ? AND dss.sale_date > ?
+                GROUP BY dss.sale_date
+                ORDER BY dss.sale_date ASC
+            """, (current_user.id, business_id, date_30d_ago)).fetchall()
+
+            history = [{
+                'date': row['sale_date'],
+                'revenue': round(row['revenue'] or 0, 2),
+                'profit': round((row['revenue'] or 0) - (row['cogs'] or 0), 2),
+                'units': row['units'] or 0
+            } for row in daily_history]
+
+            return jsonify({
+                'summary': summary,
+                'products': product_list,
+                'maturity': maturity,
+                'daily_history': history,
+            })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 
 # --- RUN THE APP ---
 if __name__ == '__main__':

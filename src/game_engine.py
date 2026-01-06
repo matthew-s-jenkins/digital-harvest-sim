@@ -23,8 +23,43 @@ WEEKLY_FACTORS = [0.90, 0.95, 1.00, 1.10, 1.40, 1.50, 1.20]
 VOLATILITY_RANGES = {
     'LOW': (0.95, 1.05),      # Farm - stable
     'MEDIUM': (0.85, 1.15),   # Keyboards - moderate swings
-    'HIGH': (0.70, 1.30),     # Tech - wild fluctuations
+    'HIGH': (0.85, 1.15),     # Tech - reduced from (0.70, 1.30) for balance
 }
+
+# Business maturity settings
+MATURITY_DAYS = 90  # Days to reach full sales velocity
+MATURITY_MIN = 0.05  # Starting demand multiplier (5%)
+MIN_DAYS_FOR_EVENTS = 14  # Don't trigger market events until day 14
+
+
+def get_maturity_factor(days_elapsed: int) -> float:
+    """
+    Calculate business maturity factor for demand scaling.
+
+    New businesses start very slow and build customer base over 90 days.
+    This creates realistic gameplay where players must manage cash flow
+    carefully during the early months.
+
+    Returns:
+        float: Multiplier from 0.05 (5%) on day 1 to 1.0 (100%) on day 90+
+
+    Day-by-day impact:
+        Day 1:  ~5% of normal sales
+        Day 7:  ~15% of normal sales
+        Day 14: ~22% of normal sales
+        Day 30: ~38% of normal sales
+        Day 60: ~62% of normal sales
+        Day 90+: 100% (full velocity)
+    """
+    if days_elapsed >= MATURITY_DAYS:
+        return 1.0
+
+    if days_elapsed <= 0:
+        return MATURITY_MIN
+
+    # Smooth curve: starts at 5%, grows to 100% over 90 days
+    progress = days_elapsed / MATURITY_DAYS
+    return MATURITY_MIN + (1.0 - MATURITY_MIN) * (progress ** 0.6)
 
 # Market event definitions (can be extended per business)
 MARKET_EVENTS = {
@@ -164,25 +199,29 @@ class GameEngine:
         volatility: str,
     ) -> int:
         """
-        Calculate daily demand for a product using 8 multipliers.
+        Calculate daily demand for a product using 9 multipliers.
 
         Returns the number of units demanded (before stock limiting).
         """
         # 1. Base demand (stored as daily average)
         daily_base = float(product['base_demand'])
 
-        # 2. Trend factor (10% YoY growth)
-        years = (current_date - start_date).days / 365.25
+        # 2. Business maturity factor (NEW - ramps 5% to 100% over 90 days)
+        days_elapsed = (current_date - start_date).days
+        maturity = get_maturity_factor(days_elapsed)
+
+        # 3. Trend factor (10% YoY growth)
+        years = days_elapsed / 365.25
         trend = 1.10 ** years
 
-        # 3. Seasonal factor (sine wave, ±30%)
+        # 4. Seasonal factor (sine wave, ±30%)
         day_of_year = current_date.timetuple().tm_yday
         seasonal = 1 + 0.3 * math.sin(2 * math.pi * (day_of_year - 80) / 365.25)
 
-        # 4. Weekly factor (weekend spike)
+        # 5. Weekly factor (weekend spike)
         weekly = WEEKLY_FACTORS[current_date.weekday()]
 
-        # 5. Price factor (sensitivity-based)
+        # 6. Price factor (sensitivity-based)
         default_price = Decimal(product['default_price'])
         if default_price > 0:
             price_diff_pct = float((player_price - default_price) / default_price)
@@ -191,15 +230,15 @@ class GameEngine:
         else:
             price_factor = 1.0
 
-        # 6. Campaign boost (passed in)
-        # 7. Event boost (passed in)
+        # 7. Campaign boost (passed in)
+        # 8. Event boost (passed in)
 
-        # 8. Random variance (based on volatility)
+        # 9. Random variance (based on volatility)
         vol_min, vol_max = VOLATILITY_RANGES.get(volatility, (0.90, 1.10))
         random_factor = random.uniform(vol_min, vol_max)
 
-        # Calculate final demand
-        calculated = daily_base * trend * seasonal * weekly * price_factor * campaign_boost * event_boost * random_factor
+        # Calculate final demand (maturity factor is the key limiter early game)
+        calculated = daily_base * maturity * trend * seasonal * weekly * price_factor * campaign_boost * event_boost * random_factor
 
         return max(0, int(calculated))
 
@@ -459,7 +498,9 @@ class GameEngine:
                     })
 
             # Check for random market events (4% daily chance)
-            if random.random() < 0.04:
+            # Don't trigger events until business is established (day 14+)
+            days_elapsed = (game_date - start_date).days
+            if days_elapsed >= MIN_DAYS_FOR_EVENTS and random.random() < 0.04:
                 new_event = self._trigger_random_event(conn, user_id, business['name'], game_date)
                 if new_event:
                     results['events_started'].append(new_event)

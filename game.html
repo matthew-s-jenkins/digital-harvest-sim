@@ -99,6 +99,7 @@
             PRODUCTS: 'products',
             SUPPLIERS: 'suppliers',
             ORDERS: 'orders',
+            ANALYTICS: 'analytics',
             FINANCIALS: 'financials'
         };
 
@@ -381,9 +382,18 @@
                             />
                         )}
 
+                        {activeTab === TABS.ANALYTICS && (
+                            <AnalyticsTab
+                                businessId={businessId}
+                                formatMoney={formatMoney}
+                                formatNumber={formatNumber}
+                            />
+                        )}
+
                         {activeTab === TABS.FINANCIALS && (
                             <FinancialsTab
                                 financials={financials}
+                                apDetails={financials?.accounts_payable_details || []}
                                 formatMoney={formatMoney}
                             />
                         )}
@@ -524,6 +534,19 @@
                 }
             };
 
+            const getDaysSupplyColor = (days) => {
+                if (days === null || days === undefined) return 'text-gray-500';
+                if (days < 3) return 'text-red-400';
+                if (days < 7) return 'text-yellow-400';
+                return 'text-green-400';
+            };
+
+            const getDaysSupplyLabel = (days) => {
+                if (days === null || days === undefined) return '-';
+                if (days < 3) return `${days.toFixed(1)}d ⚠️`;
+                return `${days.toFixed(1)}d`;
+            };
+
             return (
                 <div className="card overflow-hidden">
                     <table className="w-full">
@@ -532,6 +555,7 @@
                                 <th className="text-left p-3">Product</th>
                                 <th className="text-left p-3">Category</th>
                                 <th className="text-right p-3">Stock</th>
+                                <th className="text-right p-3">Days Supply</th>
                                 <th className="text-right p-3">Default Price</th>
                                 <th className="text-right p-3">Your Price</th>
                                 <th className="text-right p-3">Actions</th>
@@ -546,9 +570,15 @@
                                     </td>
                                     <td className="p-3 text-gray-400">{product.category_name || '-'}</td>
                                     <td className="p-3 text-right">
-                                        <span className={`font-mono ${(product.stock || 0) < 10 ? 'text-red-400' : 'text-green-400'}`}>
+                                        <div className={`font-mono ${(product.stock || 0) < 10 ? 'text-red-400' : 'text-green-400'}`}>
                                             {new Intl.NumberFormat('en-US').format(product.stock || 0)}
-                                        </span>
+                                        </div>
+                                        {product.on_order > 0 && (
+                                            <div className="text-xs text-cyan-400">+{product.on_order} ordered</div>
+                                        )}
+                                    </td>
+                                    <td className={`p-3 text-right font-mono ${getDaysSupplyColor(product.days_supply)}`}>
+                                        {getDaysSupplyLabel(product.days_supply)}
                                     </td>
                                     <td className="p-3 text-right text-gray-400 font-mono">
                                         {formatMoney(product.default_price)}
@@ -716,33 +746,55 @@
                                     <thead className="text-left text-gray-400 text-sm">
                                         <tr>
                                             <th className="pb-2">Product</th>
+                                            <th className="pb-2 text-center">Stock</th>
+                                            <th className="pb-2 text-center">Days Supply</th>
                                             <th className="pb-2 text-right">Unit Cost</th>
                                             <th className="pb-2 text-right">Quantity</th>
                                             <th className="pb-2 text-right">Subtotal</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {vendorProducts.map(product => (
-                                            <tr key={product.product_id} className="border-t border-gray-700">
-                                                <td className="py-2">{product.name}</td>
-                                                <td className="py-2 text-right font-mono text-gray-400">
-                                                    {formatMoney(product.unit_cost)}
-                                                </td>
-                                                <td className="py-2 text-right">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        value={orderItems[product.product_id] || ''}
-                                                        onChange={(e) => updateQuantity(product.product_id, e.target.value)}
-                                                        className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-right"
-                                                        placeholder="0"
-                                                    />
-                                                </td>
-                                                <td className="py-2 text-right font-mono text-green-400">
-                                                    {formatMoney((orderItems[product.product_id] || 0) * product.unit_cost)}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {vendorProducts.map(product => {
+                                            const daysSupply = product.days_supply;
+                                            const daysSupplyColor = daysSupply === null ? 'text-gray-500' :
+                                                daysSupply < 3 ? 'text-red-400' :
+                                                daysSupply < 7 ? 'text-yellow-400' : 'text-green-400';
+                                            const daysSupplyLabel = daysSupply === null ? '∞' :
+                                                daysSupply.toFixed(1) + 'd';
+
+                                            return (
+                                                <tr key={product.product_id} className="border-t border-gray-700">
+                                                    <td className="py-2">
+                                                        <div>{product.name}</div>
+                                                        {product.on_order > 0 && (
+                                                            <div className="text-xs text-blue-400">+{product.on_order} on order</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-2 text-center font-mono">
+                                                        {formatNumber(product.stock || 0)}
+                                                    </td>
+                                                    <td className={`py-2 text-center font-mono ${daysSupplyColor}`}>
+                                                        {daysSupplyLabel}
+                                                    </td>
+                                                    <td className="py-2 text-right font-mono text-gray-400">
+                                                        {formatMoney(product.unit_cost)}
+                                                    </td>
+                                                    <td className="py-2 text-right">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={orderItems[product.product_id] || ''}
+                                                            onChange={(e) => updateQuantity(product.product_id, e.target.value)}
+                                                            className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-right"
+                                                            placeholder="0"
+                                                        />
+                                                    </td>
+                                                    <td className="py-2 text-right font-mono text-green-400">
+                                                        {formatMoney((orderItems[product.product_id] || 0) * product.unit_cost)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
 
@@ -830,61 +882,537 @@
             );
         }
 
-        // Financials Tab Component
-        function FinancialsTab({ financials, formatMoney }) {
+        // Analytics Tab Component
+        function AnalyticsTab({ businessId, formatMoney, formatNumber }) {
+            const [analytics, setAnalytics] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const revenueChartRef = React.useRef(null);
+            const unitsChartRef = React.useRef(null);
+            const chartInstances = React.useRef({});
+
+            useEffect(() => {
+                loadAnalytics();
+            }, [businessId]);
+
+            // Build charts when analytics data changes
+            useEffect(() => {
+                if (analytics?.daily_history && analytics.daily_history.length > 0) {
+                    // Small delay to ensure canvas elements are mounted
+                    const timer = setTimeout(() => {
+                        buildCharts();
+                    }, 100);
+                    return () => clearTimeout(timer);
+                }
+                // Cleanup charts on unmount
+                return () => {
+                    Object.values(chartInstances.current).forEach(chart => chart?.destroy());
+                };
+            }, [analytics]);
+
+            const buildCharts = () => {
+                if (!analytics?.daily_history || analytics.daily_history.length === 0) {
+                    console.log('No daily history data for charts');
+                    return;
+                }
+
+                const history = analytics.daily_history;
+                const labels = history.map(d => d.date.slice(5)); // MM-DD format
+
+                console.log('Building charts with', history.length, 'data points');
+
+                // Destroy existing charts
+                Object.values(chartInstances.current).forEach(chart => chart?.destroy());
+
+                // Check if Chart.js is available
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js not loaded');
+                    return;
+                }
+
+                // Revenue & Profit Chart
+                console.log('Revenue chart ref:', revenueChartRef.current);
+                console.log('Units chart ref:', unitsChartRef.current);
+
+                if (revenueChartRef.current) {
+                    const ctx = revenueChartRef.current.getContext('2d');
+                    chartInstances.current.revenue = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Revenue',
+                                    data: history.map(d => d.revenue),
+                                    borderColor: '#10b981',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                    fill: true,
+                                    tension: 0.3,
+                                },
+                                {
+                                    label: 'Gross Profit',
+                                    data: history.map(d => d.profit),
+                                    borderColor: '#3b82f6',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    fill: true,
+                                    tension: 0.3,
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { labels: { color: '#9ca3af' } }
+                            },
+                            scales: {
+                                x: { ticks: { color: '#6b7280' }, grid: { color: '#374151' } },
+                                y: {
+                                    ticks: {
+                                        color: '#6b7280',
+                                        callback: (val) => '$' + val.toLocaleString()
+                                    },
+                                    grid: { color: '#374151' }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Units Sold Chart
+                if (unitsChartRef.current) {
+                    const ctx = unitsChartRef.current.getContext('2d');
+                    chartInstances.current.units = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Units Sold',
+                                data: history.map(d => d.units),
+                                backgroundColor: '#8b5cf6',
+                                borderRadius: 4,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { labels: { color: '#9ca3af' } }
+                            },
+                            scales: {
+                                x: { ticks: { color: '#6b7280' }, grid: { color: '#374151' } },
+                                y: { ticks: { color: '#6b7280' }, grid: { color: '#374151' } }
+                            }
+                        }
+                    });
+                }
+            };
+
+            const loadAnalytics = async () => {
+                if (!businessId) return;
+                setLoading(true);
+                try {
+                    const res = await fetch(`/api/game/analytics?business_id=${businessId}`, { credentials: 'include' });
+                    if (!res.ok) throw new Error('Failed to load analytics');
+                    const data = await res.json();
+                    setAnalytics(data);
+                    setError(null);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const getDaysSupplyColor = (days) => {
+                if (days === null || days === undefined) return 'text-gray-400';
+                if (days < 3) return 'text-red-400';
+                if (days < 7) return 'text-yellow-400';
+                return 'text-green-400';
+            };
+
+            const getDaysSupplyLabel = (days) => {
+                if (days === null || days === undefined) return 'N/A';
+                if (days < 3) return `${days.toFixed(1)}d ⚠️`;
+                if (days < 7) return `${days.toFixed(1)}d`;
+                return `${days.toFixed(1)}d ✓`;
+            };
+
+            if (loading) {
+                return (
+                    <div className="flex justify-center items-center py-12">
+                        <div className="text-gray-400">Loading analytics...</div>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="card p-6 text-red-400">
+                        Error: {error}
+                    </div>
+                );
+            }
+
+            const { summary, products, maturity } = analytics || {};
+
             return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* P&L Summary */}
+                <div className="space-y-6">
+                    {/* Maturity Progress */}
+                    <div className="card p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-gray-400">Business Maturity</span>
+                            <span className="text-sm text-gray-300">
+                                Day {maturity?.current_day} of {maturity?.maturity_days}
+                            </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-3">
+                            <div
+                                className="bg-gradient-to-r from-green-600 to-green-400 h-3 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, maturity?.maturity_percent || 0)}%` }}
+                            ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                            Sales at {maturity?.maturity_percent?.toFixed(0)}% of full velocity
+                        </div>
+                    </div>
+
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="card p-4">
+                            <div className="text-gray-400 text-sm">Revenue Today</div>
+                            <div className="text-xl font-mono text-green-400">{formatMoney(summary?.revenue_today)}</div>
+                        </div>
+                        <div className="card p-4">
+                            <div className="text-gray-400 text-sm">Revenue (7d)</div>
+                            <div className="text-xl font-mono text-green-400">{formatMoney(summary?.revenue_7d)}</div>
+                        </div>
+                        <div className="card p-4">
+                            <div className="text-gray-400 text-sm">Revenue (30d)</div>
+                            <div className="text-xl font-mono text-green-400">{formatMoney(summary?.revenue_30d)}</div>
+                        </div>
+                        <div className="card p-4">
+                            <div className="text-gray-400 text-sm">Gross Margin</div>
+                            <div className="text-xl font-mono text-blue-400">{summary?.gross_margin?.toFixed(1)}%</div>
+                        </div>
+                    </div>
+
+                    {/* Units Sold Row */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="card p-3 text-center">
+                            <div className="text-gray-400 text-xs">Units Today</div>
+                            <div className="text-lg font-mono">{formatNumber(summary?.units_today)}</div>
+                        </div>
+                        <div className="card p-3 text-center">
+                            <div className="text-gray-400 text-xs">Units (7d)</div>
+                            <div className="text-lg font-mono">{formatNumber(summary?.units_7d)}</div>
+                        </div>
+                        <div className="card p-3 text-center">
+                            <div className="text-gray-400 text-xs">Units (30d)</div>
+                            <div className="text-lg font-mono">{formatNumber(summary?.units_30d)}</div>
+                        </div>
+                    </div>
+
+                    {/* Charts */}
+                    {analytics?.daily_history?.length > 0 ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="card p-4">
+                                <h3 className="text-sm font-semibold text-gray-400 mb-3">Revenue & Profit Trend</h3>
+                                <div style={{ height: '200px' }}>
+                                    <canvas ref={revenueChartRef}></canvas>
+                                </div>
+                            </div>
+                            <div className="card p-4">
+                                <h3 className="text-sm font-semibold text-gray-400 mb-3">Units Sold</h3>
+                                <div style={{ height: '200px' }}>
+                                    <canvas ref={unitsChartRef}></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="card p-6 text-center text-gray-500">
+                            <div className="text-lg mb-2">No Sales History Yet</div>
+                            <div className="text-sm">Charts will appear after you advance a few days and make some sales.</div>
+                        </div>
+                    )}
+
+                    {/* Product Performance Table */}
                     <div className="card p-6">
-                        <h3 className="text-lg font-semibold mb-4">Profit & Loss</h3>
-                        <div className="space-y-4">
-                            <div className="flex justify-between py-2 border-b border-gray-700">
-                                <span className="text-gray-400">Revenue</span>
-                                <span className="font-mono text-blue-400">{formatMoney(financials?.revenue)}</span>
+                        <h3 className="text-lg font-semibold mb-4">Product Performance</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-gray-400 border-b border-gray-700">
+                                        <th className="text-left py-2">Product</th>
+                                        <th className="text-right py-2">Stock</th>
+                                        <th className="text-right py-2">On Order</th>
+                                        <th className="text-right py-2">Avg/Day</th>
+                                        <th className="text-right py-2">Days Supply</th>
+                                        <th className="text-right py-2">Revenue (7d)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {products?.map(p => (
+                                        <tr key={p.product_id} className="border-b border-gray-800 hover:bg-gray-800/50">
+                                            <td className="py-2 font-medium">{p.name}</td>
+                                            <td className="text-right py-2 font-mono">{formatNumber(p.stock)}</td>
+                                            <td className="text-right py-2 font-mono text-cyan-400">{p.on_order > 0 ? `+${formatNumber(p.on_order)}` : '-'}</td>
+                                            <td className="text-right py-2 font-mono">{p.avg_daily_sales?.toFixed(1) || '0.0'}</td>
+                                            <td className={`text-right py-2 font-mono ${getDaysSupplyColor(p.days_supply)}`}>
+                                                {getDaysSupplyLabel(p.days_supply)}
+                                            </td>
+                                            <td className="text-right py-2 font-mono text-green-400">{formatMoney(p.revenue_7d)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-4 text-xs text-gray-500">
+                            <span className="text-red-400">⚠️ &lt;3 days</span> = Reorder now |
+                            <span className="text-yellow-400 ml-2">3-7 days</span> = Low stock |
+                            <span className="text-green-400 ml-2">✓ 7+ days</span> = OK
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Financials Tab Component
+        function FinancialsTab({ financials, apDetails, formatMoney }) {
+            const inc = financials?.income_statement || {};
+            const bs = financials?.balance_sheet || {};
+            const cf = financials?.cash_flow || {};
+
+            return (
+                <div className="space-y-6">
+                    {/* Three Financial Statements Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                        {/* INCOME STATEMENT */}
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4 text-blue-400 border-b border-gray-700 pb-2">
+                                Income Statement
+                            </h3>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between py-1">
+                                    <span className="text-gray-400">Revenue</span>
+                                    <span className="font-mono text-blue-400">{formatMoney(inc.revenue)}</span>
+                                </div>
+                                <div className="flex justify-between py-1">
+                                    <span className="text-gray-400 pl-2">- Cost of Goods Sold</span>
+                                    <span className="font-mono text-red-400">({formatMoney(inc.cogs)})</span>
+                                </div>
+                                <div className="flex justify-between py-2 border-t border-gray-700 font-medium">
+                                    <span>= Gross Profit</span>
+                                    <span className={`font-mono ${inc.gross_profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {formatMoney(inc.gross_profit)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between py-1 text-xs text-gray-500">
+                                    <span>Gross Margin</span>
+                                    <span>{inc.gross_margin_percent || 0}%</span>
+                                </div>
+                                <div className="flex justify-between py-1">
+                                    <span className="text-gray-400 pl-2">- Operating Expenses</span>
+                                    <span className="font-mono text-red-400">({formatMoney(inc.operating_expenses)})</span>
+                                </div>
+                                <div className="flex justify-between py-2 border-t border-gray-700 border-double font-bold text-lg">
+                                    <span>= Net Income</span>
+                                    <span className={`font-mono ${inc.net_income >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {formatMoney(inc.net_income)}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex justify-between py-2 border-b border-gray-700">
-                                <span className="text-gray-400">Cost of Goods Sold</span>
-                                <span className="font-mono text-red-400">({formatMoney(financials?.cogs)})</span>
+                        </div>
+
+                        {/* BALANCE SHEET */}
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4 text-purple-400 border-b border-gray-700 pb-2">
+                                Balance Sheet
+                            </h3>
+                            <div className="space-y-2 text-sm">
+                                {/* Assets Section */}
+                                <div className="text-gray-400 font-medium text-xs uppercase tracking-wide">Assets</div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Cash</span>
+                                    <span className="font-mono text-green-400">{formatMoney(bs.assets?.cash)}</span>
+                                </div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Inventory</span>
+                                    <span className="font-mono text-cyan-400">{formatMoney(bs.assets?.inventory)}</span>
+                                </div>
+                                <div className="flex justify-between py-1 border-t border-gray-700 font-medium">
+                                    <span>Total Assets</span>
+                                    <span className="font-mono">{formatMoney(bs.assets?.total)}</span>
+                                </div>
+
+                                {/* Liabilities Section */}
+                                <div className="text-gray-400 font-medium text-xs uppercase tracking-wide mt-4">Liabilities</div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Accounts Payable</span>
+                                    <span className="font-mono text-red-400">{formatMoney(bs.liabilities?.accounts_payable)}</span>
+                                </div>
+                                <div className="flex justify-between py-1 border-t border-gray-700 font-medium">
+                                    <span>Total Liabilities</span>
+                                    <span className="font-mono">{formatMoney(bs.liabilities?.total)}</span>
+                                </div>
+
+                                {/* Equity Section */}
+                                <div className="text-gray-400 font-medium text-xs uppercase tracking-wide mt-4">Equity</div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Starting Capital</span>
+                                    <span className="font-mono">{formatMoney(bs.equity?.starting_capital)}</span>
+                                </div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Retained Earnings</span>
+                                    <span className={`font-mono ${bs.equity?.retained_earnings >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {formatMoney(bs.equity?.retained_earnings)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between py-1 border-t border-gray-700 font-medium">
+                                    <span>Total Equity</span>
+                                    <span className="font-mono text-purple-400">{formatMoney(bs.equity?.total)}</span>
+                                </div>
+
+                                {/* Balance Check */}
+                                <div className="flex justify-between py-2 mt-2 border-t border-gray-700 border-double text-xs">
+                                    <span className="text-gray-500">A = L + E</span>
+                                    <span className={bs.balanced ? 'text-green-500' : 'text-red-500'}>
+                                        {bs.balanced ? '✓ Balanced' : '✗ Unbalanced'}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex justify-between py-2 text-lg font-bold">
-                                <span>Gross Profit</span>
-                                <span className={financials?.gross_profit >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                    {formatMoney(financials?.gross_profit)}
-                                </span>
+                        </div>
+
+                        {/* CASH FLOW STATEMENT */}
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4 text-cyan-400 border-b border-gray-700 pb-2">
+                                Cash Flow Statement
+                            </h3>
+                            <div className="space-y-2 text-sm">
+                                <div className="text-gray-400 font-medium text-xs uppercase tracking-wide">Operating Activities</div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Cash from Sales</span>
+                                    <span className="font-mono text-green-400">
+                                        {formatMoney(cf.operating_activities?.cash_from_sales)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Inventory Purchases</span>
+                                    <span className="font-mono text-red-400">
+                                        {formatMoney(cf.operating_activities?.cash_for_inventory)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>AP Payments</span>
+                                    <span className="font-mono text-red-400">
+                                        {formatMoney(cf.operating_activities?.cash_for_ap_payments)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between py-1 pl-2">
+                                    <span>Expenses Paid</span>
+                                    <span className="font-mono text-red-400">
+                                        {formatMoney(cf.operating_activities?.cash_for_expenses)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between py-2 border-t border-gray-700 font-medium">
+                                    <span>Net Cash from Operations</span>
+                                    <span className={`font-mono ${cf.operating_activities?.net_cash_from_operations >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {formatMoney(cf.operating_activities?.net_cash_from_operations)}
+                                    </span>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-gray-700">
+                                    <div className="flex justify-between py-1">
+                                        <span className="text-gray-400">Beginning Cash</span>
+                                        <span className="font-mono">{formatMoney(cf.beginning_cash)}</span>
+                                    </div>
+                                    <div className="flex justify-between py-1">
+                                        <span className="text-gray-400">+ Net Cash Flow</span>
+                                        <span className={`font-mono ${cf.operating_activities?.net_cash_from_operations >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {formatMoney(cf.operating_activities?.net_cash_from_operations)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between py-2 border-t border-gray-700 border-double font-bold">
+                                        <span>= Ending Cash</span>
+                                        <span className="font-mono text-cyan-400">{formatMoney(cf.ending_cash)}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Balance Sheet */}
-                    <div className="card p-6">
-                        <h3 className="text-lg font-semibold mb-4">Balance Sheet</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="text-gray-400 text-sm mb-2">Assets</h4>
-                                <div className="flex justify-between py-1">
-                                    <span>Cash</span>
-                                    <span className="font-mono text-green-400">{formatMoney(financials?.cash)}</span>
-                                </div>
-                                <div className="flex justify-between py-1">
-                                    <span>Inventory</span>
-                                    <span className="font-mono text-cyan-400">{formatMoney(financials?.inventory_value)}</span>
-                                </div>
-                            </div>
-                            <div className="border-t border-gray-700 pt-4">
-                                <h4 className="text-gray-400 text-sm mb-2">Liabilities</h4>
-                                <div className="flex justify-between py-1">
-                                    <span>Accounts Payable</span>
-                                    <span className="font-mono text-red-400">{formatMoney(financials?.accounts_payable)}</span>
-                                </div>
-                            </div>
-                            <div className="border-t border-gray-700 pt-4">
-                                <div className="flex justify-between text-lg font-bold">
-                                    <span>Net Worth</span>
-                                    <span className="text-purple-400">{formatMoney(financials?.net_worth)}</span>
-                                </div>
+                    {/* Quick Summary Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="card p-4 text-center">
+                            <div className="text-gray-400 text-sm">Total Revenue</div>
+                            <div className="text-xl font-bold text-blue-400">{formatMoney(inc.revenue)}</div>
+                        </div>
+                        <div className="card p-4 text-center">
+                            <div className="text-gray-400 text-sm">Gross Margin</div>
+                            <div className="text-xl font-bold text-green-400">{inc.gross_margin_percent || 0}%</div>
+                        </div>
+                        <div className="card p-4 text-center">
+                            <div className="text-gray-400 text-sm">Net Income</div>
+                            <div className={`text-xl font-bold ${inc.net_income >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {formatMoney(inc.net_income)}
                             </div>
                         </div>
+                        <div className="card p-4 text-center">
+                            <div className="text-gray-400 text-sm">Total Equity</div>
+                            <div className="text-xl font-bold text-purple-400">{formatMoney(bs.equity?.total)}</div>
+                        </div>
                     </div>
+
+                    {/* Accounts Payable Details */}
+                    {apDetails && apDetails.length > 0 && (
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4 text-red-400 border-b border-gray-700 pb-2">
+                                Bills Due (Accounts Payable)
+                            </h3>
+                            <table className="w-full text-sm">
+                                <thead className="text-gray-400">
+                                    <tr>
+                                        <th className="text-left pb-2">Vendor</th>
+                                        <th className="text-left pb-2">PO #</th>
+                                        <th className="text-right pb-2">Amount</th>
+                                        <th className="text-right pb-2">Due Date</th>
+                                        <th className="text-right pb-2">Days Until Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {apDetails.map((bill, idx) => (
+                                        <tr key={idx} className="border-t border-gray-700">
+                                            <td className="py-2">{bill.vendor_name}</td>
+                                            <td className="py-2 text-gray-400">#{bill.po_number}</td>
+                                            <td className="py-2 text-right font-mono text-red-400">
+                                                {formatMoney(bill.amount_due)}
+                                            </td>
+                                            <td className="py-2 text-right text-gray-400">{bill.due_date}</td>
+                                            <td className={`py-2 text-right font-mono ${
+                                                bill.is_overdue ? 'text-red-500 font-bold' :
+                                                bill.days_until_due <= 3 ? 'text-yellow-400' :
+                                                'text-green-400'
+                                            }`}>
+                                                {bill.is_overdue ? `${Math.abs(bill.days_until_due)}d OVERDUE` :
+                                                 bill.days_until_due === 0 ? 'TODAY' :
+                                                 `${bill.days_until_due}d`}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="border-t-2 border-gray-600">
+                                    <tr>
+                                        <td colSpan="2" className="py-2 font-semibold">Total Payable</td>
+                                        <td className="py-2 text-right font-mono font-bold text-red-400">
+                                            {formatMoney(apDetails.reduce((sum, b) => sum + b.amount_due, 0))}
+                                        </td>
+                                        <td colSpan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    )}
                 </div>
             );
         }
