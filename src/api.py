@@ -2469,6 +2469,9 @@ def get_analytics_api():
     - products: Per-product performance with stock, velocity, days supply
     - maturity: Business maturity info (day X of 90)
     """
+    from game_engine import MATURITY_DAYS, get_maturity_factor
+    from datetime import datetime, timedelta
+
     try:
         business_id = request.args.get('business_id', type=int)
 
@@ -2484,7 +2487,6 @@ def get_analytics_api():
 
             if not state:
                 # No game started yet - return empty analytics
-                from game_engine import MATURITY_DAYS
                 return jsonify({
                     'summary': {
                         'revenue_today': 0, 'revenue_7d': 0, 'revenue_30d': 0,
@@ -2496,20 +2498,23 @@ def get_analytics_api():
                     'daily_history': []
                 })
 
-            current_date = state['current_date']
+            current_date = state['current_date'] or ''
             start_date = state['created_at'] or current_date
 
-            # Calculate days elapsed
-            from datetime import datetime
-            # Handle date formats that may include time component
-            current_date_str = current_date.split(' ')[0] if ' ' in current_date else current_date[:10]
-            start_date_str = start_date.split(' ')[0] if ' ' in start_date else start_date[:10]
-            current_dt = datetime.strptime(current_date_str, '%Y-%m-%d')
-            start_dt = datetime.strptime(start_date_str, '%Y-%m-%d')
+            # Calculate days elapsed - handle various date formats safely
+            try:
+                current_date_str = current_date.split(' ')[0] if ' ' in str(current_date) else str(current_date)[:10]
+                start_date_str = start_date.split(' ')[0] if ' ' in str(start_date) else str(start_date)[:10]
+                current_dt = datetime.strptime(current_date_str, '%Y-%m-%d')
+                start_dt = datetime.strptime(start_date_str, '%Y-%m-%d')
+            except (ValueError, TypeError, AttributeError) as e:
+                # If date parsing fails, use today
+                current_dt = datetime.now()
+                start_dt = current_dt
+                current_date_str = current_dt.strftime('%Y-%m-%d')
             days_elapsed = (current_dt - start_dt).days
 
             # Calculate date ranges
-            from datetime import timedelta
             date_7d_ago = (current_dt - timedelta(days=7)).strftime('%Y-%m-%d')
             date_30d_ago = (current_dt - timedelta(days=30)).strftime('%Y-%m-%d')
 
@@ -2625,8 +2630,7 @@ def get_analytics_api():
                     'revenue_7d': round(p['revenue_7d'] or 0, 2),
                 })
 
-            # Maturity info
-            from game_engine import MATURITY_DAYS, get_maturity_factor
+            # Maturity info (imports at top of function)
             maturity_percent = get_maturity_factor(days_elapsed) * 100
 
             maturity = {
