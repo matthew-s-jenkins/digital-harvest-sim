@@ -2516,7 +2516,7 @@ def get_analytics_api():
                 current_dt = datetime.now()
                 start_dt = current_dt
                 current_date_str = current_dt.strftime('%Y-%m-%d')
-            days_elapsed = (current_dt - start_dt).days
+            days_elapsed = max(0, (current_dt - start_dt).days)
 
             # Calculate date ranges
             date_7d_ago = (current_dt - timedelta(days=7)).strftime('%Y-%m-%d')
