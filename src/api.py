@@ -2483,15 +2483,29 @@ def get_analytics_api():
             """, (current_user.id, business_id)).fetchone()
 
             if not state:
-                return jsonify({"error": "No game state found"}), 404
+                # No game started yet - return empty analytics
+                from game_engine import MATURITY_DAYS
+                return jsonify({
+                    'summary': {
+                        'revenue_today': 0, 'revenue_7d': 0, 'revenue_30d': 0,
+                        'units_today': 0, 'units_7d': 0, 'units_30d': 0,
+                        'gross_margin': 0
+                    },
+                    'products': [],
+                    'maturity': {'current_day': 0, 'maturity_days': MATURITY_DAYS, 'maturity_percent': 0},
+                    'daily_history': []
+                })
 
             current_date = state['current_date']
             start_date = state['created_at'] or current_date
 
             # Calculate days elapsed
             from datetime import datetime
-            current_dt = datetime.strptime(current_date, '%Y-%m-%d')
-            start_dt = datetime.strptime(start_date.split(' ')[0], '%Y-%m-%d')
+            # Handle date formats that may include time component
+            current_date_str = current_date.split(' ')[0] if ' ' in current_date else current_date[:10]
+            start_date_str = start_date.split(' ')[0] if ' ' in start_date else start_date[:10]
+            current_dt = datetime.strptime(current_date_str, '%Y-%m-%d')
+            start_dt = datetime.strptime(start_date_str, '%Y-%m-%d')
             days_elapsed = (current_dt - start_dt).days
 
             # Calculate date ranges
@@ -2508,7 +2522,7 @@ def get_analytics_api():
                 FROM daily_sales_summary dss
                 JOIN products p ON dss.product_id = p.product_id
                 WHERE dss.user_id = ? AND p.business_id = ? AND dss.sale_date = ?
-            """, (current_user.id, business_id, current_date)).fetchone()
+            """, (current_user.id, business_id, current_date_str)).fetchone()
 
             # Summary metrics - 7 day
             week_stats = conn.execute("""
