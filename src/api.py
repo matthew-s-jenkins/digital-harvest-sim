@@ -2609,13 +2609,14 @@ def get_analytics_api():
                 stock = p['stock'] or 0
                 on_order = p['on_order'] or 0
                 avg_sales = p['avg_daily_sales'] or 0
+                base_demand = p['base_demand'] or 0
 
                 # Calculate days supply (use base_demand as fallback if no sales history)
                 if avg_sales > 0:
                     days_supply = (stock + on_order) / avg_sales
-                elif p['base_demand'] > 0:
+                elif base_demand > 0:
                     # Fallback to base_demand estimate (with maturity factor approximation)
-                    estimated_daily = p['base_demand'] * 0.3  # Rough maturity estimate
+                    estimated_daily = base_demand * 0.3  # Rough maturity estimate
                     days_supply = (stock + on_order) / estimated_daily if estimated_daily > 0 else 999
                 else:
                     days_supply = 999  # No demand expected
