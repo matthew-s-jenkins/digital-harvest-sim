@@ -2484,7 +2484,7 @@ def get_analytics_api():
         with game_engine.get_db() as conn:
             # Get game state for maturity calculation
             state = conn.execute("""
-                SELECT current_date, created_at FROM game_state
+                SELECT current_date, start_date, created_at FROM game_state
                 WHERE user_id = ? AND business_id = ?
             """, (current_user.id, business_id)).fetchone()
 
@@ -2502,7 +2502,8 @@ def get_analytics_api():
                 })
 
             current_date = state['current_date'] or ''
-            start_date = state['created_at'] or current_date
+            # Use start_date column (in-game start), fall back to created_at for legacy data
+            start_date = state['start_date'] or state['created_at'] or current_date
 
             # Calculate days elapsed - handle various date formats safely
             try:

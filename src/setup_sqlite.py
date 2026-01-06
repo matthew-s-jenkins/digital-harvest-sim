@@ -345,6 +345,7 @@ def create_database():
                 user_id INTEGER NOT NULL,
                 business_id INTEGER NOT NULL,
                 current_date TEXT NOT NULL,
+                start_date TEXT,
                 starting_cash TEXT DEFAULT '50000.00',
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id, business_id),

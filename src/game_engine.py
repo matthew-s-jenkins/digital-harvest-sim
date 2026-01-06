@@ -177,9 +177,9 @@ class GameEngine:
             # Create new game state for this user+business combination
             start_date = datetime.now().strftime('%Y-%m-%d')
             conn.execute("""
-                INSERT INTO game_state (user_id, business_id, current_date)
-                VALUES (?, ?, ?)
-            """, (user_id, business_id, start_date))
+                INSERT INTO game_state (user_id, business_id, current_date, start_date)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, business_id, start_date, start_date))
 
             return {
                 'user_id': user_id,
