@@ -2469,8 +2469,11 @@ def get_analytics_api():
     - products: Per-product performance with stock, velocity, days supply
     - maturity: Business maturity info (day X of 90)
     """
-    from game_engine import MATURITY_DAYS, get_maturity_factor
     from datetime import datetime, timedelta
+    try:
+        from game_engine import MATURITY_DAYS, get_maturity_factor
+    except ImportError:
+        from src.game_engine import MATURITY_DAYS, get_maturity_factor
 
     try:
         business_id = request.args.get('business_id', type=int)
