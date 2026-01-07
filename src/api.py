@@ -125,7 +125,9 @@ except Exception as e:
 
 # Initialize the game engine for Digital Harvest
 try:
-    game_engine = GameEngine(str(get_db_path()))
+    _db_path = str(get_db_path())
+    print(f"[API INIT] Using database: {_db_path}")
+    game_engine = GameEngine(_db_path)
 except Exception as e:
     print(f"FATAL: Could not initialize game engine. Error: {e}")
     game_engine = None
@@ -1689,6 +1691,133 @@ def start_game_api():
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
 
+
+@app.route('/api/game/restart', methods=['POST'])
+@check_game_engine
+@login_required
+def restart_game_api():
+    """Restart a game for a specific business - wipes all progress and starts fresh."""
+    try:
+        data = request.get_json()
+        business_id = data.get('business_id')
+
+        if not business_id:
+            return jsonify({"success": False, "message": "business_id is required"}), 400
+
+        user_id = int(current_user.id)
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+
+        with game_engine.get_db() as conn:
+            # Get business info for starting cash
+            business = conn.execute("""
+                SELECT * FROM businesses WHERE business_id = ?
+            """, (business_id,)).fetchone()
+
+            if not business:
+                return jsonify({"success": False, "message": "Business not found"}), 404
+
+            # Disable foreign keys temporarily for clean deletion
+            conn.execute("PRAGMA foreign_keys = OFF")
+
+            # Delete all user data for this business
+
+            # Delete sales history
+            conn.execute("""
+                DELETE FROM daily_sales_summary
+                WHERE user_id = ? AND product_id IN (
+                    SELECT product_id FROM products WHERE business_id = ?
+                )
+            """, (user_id, business_id))
+
+            # Delete inventory layers
+            conn.execute("""
+                DELETE FROM inventory_layers
+                WHERE user_id = ? AND product_id IN (
+                    SELECT product_id FROM products WHERE business_id = ?
+                )
+            """, (user_id, business_id))
+
+            # Delete purchase order items for this business
+            conn.execute("""
+                DELETE FROM purchase_order_items
+                WHERE order_id IN (
+                    SELECT po.order_id FROM purchase_orders po
+                    JOIN vendors v ON po.vendor_id = v.vendor_id
+                    WHERE po.user_id = ? AND v.business_id = ?
+                )
+            """, (user_id, business_id))
+
+            # Delete purchase orders for this business
+            conn.execute("""
+                DELETE FROM purchase_orders
+                WHERE user_id = ? AND vendor_id IN (
+                    SELECT vendor_id FROM vendors WHERE business_id = ?
+                )
+            """, (user_id, business_id))
+
+            # Delete player product settings
+            conn.execute("""
+                DELETE FROM player_product_settings
+                WHERE user_id = ? AND product_id IN (
+                    SELECT product_id FROM products WHERE business_id = ?
+                )
+            """, (user_id, business_id))
+
+            # Delete marketing campaigns (table doesn't have business_id)
+            conn.execute("""
+                DELETE FROM marketing_campaigns
+                WHERE user_id = ?
+            """, (user_id,))
+
+            # Delete financial ledger entries
+            conn.execute("""
+                DELETE FROM financial_ledger
+                WHERE user_id = ? AND business_id = ?
+            """, (user_id, business_id))
+
+            # Delete vendor relationships
+            conn.execute("""
+                DELETE FROM vendor_relationships
+                WHERE user_id = ? AND vendor_id IN (
+                    SELECT vendor_id FROM vendors WHERE business_id = ?
+                )
+            """, (user_id, business_id))
+
+            # Reset game state to today with fresh start
+            conn.execute("""
+                UPDATE game_state
+                SET current_date = ?, start_date = ?, starting_cash = ?
+                WHERE user_id = ? AND business_id = ?
+            """, (today, today, business['starting_cash'], user_id, business_id))
+
+            # Re-initialize starting cash
+            import uuid
+            tx_uuid = str(uuid.uuid4())
+            conn.execute("""
+                INSERT INTO financial_ledger
+                (user_id, business_id, transaction_date, account, debit, credit, description, transaction_uuid)
+                VALUES (?, ?, ?, 'Cash', ?, 0, 'Starting Capital', ?)
+            """, (user_id, business_id, today, business['starting_cash'], tx_uuid))
+
+            conn.execute("""
+                INSERT INTO financial_ledger
+                (user_id, business_id, transaction_date, account, debit, credit, description, transaction_uuid)
+                VALUES (?, ?, ?, 'Owner Equity', 0, ?, 'Starting Capital', ?)
+            """, (user_id, business_id, today, business['starting_cash'], tx_uuid))
+
+            # Re-enable foreign keys
+            conn.execute("PRAGMA foreign_keys = ON")
+
+        return jsonify({
+            "success": True,
+            "message": f"Game restarted for {business['name']}! Starting fresh with ${business['starting_cash']:,}."
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/api/game/advance_time', methods=['POST'])
 @check_game_engine
 @login_required
@@ -2482,9 +2611,9 @@ def get_analytics_api():
             return jsonify({"error": "business_id is required"}), 400
 
         with game_engine.get_db() as conn:
-            # Get game state for maturity calculation
+            # Get game state for maturity calculation - use SELECT * to avoid column name issues
             state = conn.execute("""
-                SELECT current_date, start_date, created_at FROM game_state
+                SELECT * FROM game_state
                 WHERE user_id = ? AND business_id = ?
             """, (current_user.id, business_id)).fetchone()
 
@@ -2501,9 +2630,10 @@ def get_analytics_api():
                     'daily_history': []
                 })
 
-            current_date = state['current_date'] or ''
+            state_dict = dict(state)
+            current_date = state_dict.get('current_date') or ''
             # Use start_date column (in-game start), fall back to created_at for legacy data
-            start_date = state['start_date'] or state['created_at'] or current_date
+            start_date = state_dict.get('start_date') or state_dict.get('created_at') or current_date
 
             # Calculate days elapsed - handle various date formats safely
             try:

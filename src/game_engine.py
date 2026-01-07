@@ -144,15 +144,11 @@ class GameEngine:
     @contextmanager
     def get_db(self):
         """Get a database connection with foreign keys enabled."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, isolation_level=None)  # autocommit mode
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
         try:
             yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
         finally:
             conn.close()
 

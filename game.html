@@ -217,6 +217,34 @@
                 setAdvancing(false);
             };
 
+            const restartGame = async () => {
+                if (!businessId) return;
+
+                if (!confirm('Are you sure you want to restart this game? All progress will be lost!')) {
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/api/game/restart', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ business_id: businessId })
+                    });
+
+                    const data = await res.json();
+                    if (data.success) {
+                        setEventLog([{ type: 'system', date: new Date().toISOString().split('T')[0], text: data.message }]);
+                        await loadGameData(businessId);
+                    } else {
+                        alert('Failed to restart: ' + data.message);
+                    }
+                } catch (err) {
+                    console.error('Failed to restart game:', err);
+                    alert('Failed to restart game');
+                }
+            };
+
             const formatMoney = (amount) => {
                 return new Intl.NumberFormat('en-US', {
                     style: 'currency',
@@ -309,6 +337,15 @@
                                 <a href="/select-business" className="text-gray-400 hover:text-white text-sm">
                                     Change Business
                                 </a>
+
+                                {/* Restart Game */}
+                                <button
+                                    onClick={restartGame}
+                                    className="text-red-400 hover:text-red-300 text-sm"
+                                    title="Restart this business from scratch"
+                                >
+                                    Restart Game
+                                </button>
                             </div>
                         </div>
 
