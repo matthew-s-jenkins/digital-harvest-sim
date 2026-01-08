@@ -96,6 +96,7 @@ pip install -r requirements.txt
 2. **Watch Sales Happen** - Customers buy based on demand patterns, seasonality, and your pricing
 3. **Manage Cash Flow** - Pay bills on time, track expenses, and grow your business
 4. **Advance Time** - Each day brings new sales, deliveries, and challenges
+5. **Restart Anytime** - Made a mistake? Restart any business from scratch without affecting others
 
 ### 📦 Realistic Business Mechanics
 
@@ -208,6 +209,7 @@ All endpoints use `/api/` prefix and require authentication (except register/log
 | `/api/game/state` | GET | Current game state |
 | `/api/game/start` | POST | Start new game for business |
 | `/api/game/advance_time` | POST | Progress simulation |
+| `/api/game/restart` | POST | Reset business to fresh start |
 | `/api/game/purchase_order` | POST | Create vendor order |
 | `/api/game/financials` | GET | P&L and balance sheet |
 
