@@ -13,7 +13,7 @@
 **[Play Digital Harvest](https://digital-harvest-sim-4cff42aff69b.herokuapp.com/)** - Register an account and start your business empire!
 
 Choose from three unique businesses:
-- ⌨️ **Clicky Clack Supply** - Mechanical keyboard switches
+- ⌨️ **Keyp Collected** - Mechanical keyboard switches
 - 💻 **Silicon Orchard** - Tech parts and vintage computing
 - 🌱 **Heritage Seeds** - Vertical farm produce
 
@@ -86,7 +86,7 @@ pip install -r requirements.txt
 
 | Business | Volatility | Starting Cash | Theme |
 |----------|------------|---------------|-------|
-| **Clicky Clack Supply** | Medium | $15,000 | Mechanical keyboard switches - ride enthusiast trends |
+| **Keyp Collected** | Medium | $15,000 | Mechanical keyboard switches - ride enthusiast trends |
 | **Silicon Orchard** | High | $25,000 | Tech parts - crypto booms create wild swings |
 | **Heritage Seeds** | Low | $10,000 | Vertical farm - steady, reliable growth |
 

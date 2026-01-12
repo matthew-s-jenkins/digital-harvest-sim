@@ -5,7 +5,7 @@ This module populates the database with the 3 business types and their
 associated products, categories, vendors, and starting data.
 
 Business Types:
-1. Clicky Clack Supply (Keyboards) - Medium volatility
+1. Keyp Collected (Keyboards) - Medium volatility
 2. Silicon Orchard (Tech/Crypto) - High volatility
 3. Heritage Seeds (Vertical Farm) - Low volatility
 
@@ -27,7 +27,7 @@ def seed_businesses(cursor):
     print("Seeding businesses...", end=" ")
 
     businesses = [
-        ('keyboards', 'Clicky Clack Supply',
+        ('keyboards', 'Keyp Collected',
          'A mechanical keyboard switch retailer. Ride the trends of the enthusiast community - streamers, ASMR creators, and ergonomics advocates drive demand.',
          'MEDIUM', '⌨️', 15000.00),
         ('tech', 'Silicon Orchard',
@@ -46,8 +46,8 @@ def seed_businesses(cursor):
 
 
 def seed_keyboards_data(cursor, business_id):
-    """Seed data for Clicky Clack Supply (Keyboards)"""
-    print("  Seeding Clicky Clack Supply data...")
+    """Seed data for Keyp Collected (Keyboards)"""
+    print("  Seeding Keyp Collected data...")
 
     # Categories
     categories = [
