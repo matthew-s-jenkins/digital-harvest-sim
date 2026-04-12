@@ -1,4 +1,4 @@
-# Digital Harvest - Business Simulation Game
+# Digital Harvest - Business Simulation & Analytics Platform
 
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org/)
@@ -6,7 +6,7 @@
 [![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-> A business simulation game built on real-world accounting principles. Run a keyboard shop, tech store, or vertical farm while learning inventory management, supply chain logistics, and financial decision-making.
+> A retail business simulation that generates analytically meaningful financial data on demand. Built on a real double-entry ledger and FIFO inventory costing — the same accounting architecture used by production software. Runs keyboard shops, tech stores, and vertical farms to stress-test the platform and produce realistic datasets for BI work.
 
 ### 🚀 Live Demo
 
@@ -23,7 +23,7 @@ Choose from three unique businesses:
 
 ## 📋 Table of Contents
 
-- [About the Game](#-about-the-game)
+- [About the Project](#-about-the-project)
 - [Quick Start](#-quick-start)
 - [Core Features](#-core-features)
 - [Technical Highlights](#-technical-highlights)
@@ -36,22 +36,28 @@ Choose from three unique businesses:
 
 ---
 
-## 🎯 About the Game
+## 🎯 About the Project
 
-**Digital Harvest** is an interactive business simulation where you manage a retail operation with real accounting accuracy. Unlike typical idle games, this simulator maintains a complete **double-entry accounting system** and **FIFO inventory costing** - the same principles used by real businesses.
+**Digital Harvest** is a retail business simulation with real accounting accuracy. It maintains a complete **double-entry accounting system** and **FIFO inventory costing** — the same principles used by production software — and uses those to generate realistic, analytically meaningful datasets on demand.
 
 ### Why I Built This
 
-This project started as a data analysis tool - I wanted to generate realistic business data for Power BI dashboards. But to make the data meaningful, the underlying simulation had to be accurate: proper inventory tracking, cost accounting, and double-entry bookkeeping.
+This started as a way to generate realistic business data for Power BI practice. I wanted the same kind of data I analyzed professionally — seasonal trends, weekly patterns, inventory dynamics, vendor lead times, proper financial tracking — but on demand and at any scale. Off-the-shelf sample datasets didn't have the complexity of real retail operations.
 
-The result is a game that teaches business principles through hands-on experience while generating data realistic enough for actual analysis.
+But to make the data meaningful, the underlying engine had to be accurate: proper inventory tracking, cost accounting, and double-entry bookkeeping. Once that was in place, it became clear the simulation was doing double duty. It was both a realistic data generator *and* a stress-test harness for the accounting architecture that would later power [Perfect Books](https://github.com/matthew-s-jenkins/perfect-books) and [Artifact Live](https://github.com/matthew-s-jenkins/artifact-live).
 
-### What You'll Learn
+Today it serves three jobs:
 
-- 📊 **Inventory Management** - Balance stock levels against carrying costs
-- 🚚 **Supply Chain Logistics** - Manage lead times and vendor relationships
-- 💰 **Cash Flow Management** - Pay bills on time while maintaining liquidity
-- 📈 **Financial Analysis** - Read P&L statements and balance sheets
+- **Analytics sandbox** — generate realistic P&L, balance sheet, and inventory data for BI, Power BI, and SQL practice
+- **Platform test bench** — stress-test the shared accounting core across thousands of transactions and multiple business profiles before deploying to real operations
+- **Interactive simulation** — play a retail business with real books behind it, not a scoreboard
+
+### What It Demonstrates
+
+- 📊 **Inventory Management** — Balance stock levels against carrying costs, FIFO cost layers, days supply
+- 🚚 **Supply Chain Logistics** — Lead times, vendor minimums, accounts payable aging
+- 💰 **Cash Flow Management** — Bill payment, working capital, financial runway
+- 📈 **Financial Analysis** — Full 3-statement reporting (Income Statement, Balance Sheet, Cash Flow)
 
 ---
 
@@ -238,16 +244,23 @@ Schema changes are handled automatically via `migration_runner.py`. Migration fi
 
 ## 🔗 Related Projects
 
-### Perfect Books - Personal Finance Management
+Part of a connected platform built on shared accounting and reporting foundations:
 
-Digital Harvest shares its **double-entry accounting foundation** with [Perfect Books](https://github.com/matthew-s-jenkins/perfect-books), a personal finance application.
+| Project | Status | Description |
+|---------|--------|-------------|
+| [Perfect Books](https://github.com/matthew-s-jenkins/perfect-books) | Public | Personal double-entry accounting |
+| [Artifact Live](https://github.com/matthew-s-jenkins/artifact-live) | Public | Multi-business operations platform |
+| **Canopy** | Private (built at Harris Teeter) | Executive sales intelligence dashboard |
+| **Cadence** | Private (built at Harris Teeter) | Close management & account ownership platform |
 
-**Shared Architecture:**
+Digital Harvest was the proving ground: its double-entry ledger and FIFO costing engine became the foundation for Perfect Books (personal finance) and Artifact Live (multi-business operations). Canopy and Cadence apply the same reporting and close patterns at enterprise scale.
+
+**Shared architecture across the platform:**
 - ✅ Double-entry accounting (Assets = Liabilities + Equity)
-- ✅ Immutable financial ledger
+- ✅ Immutable financial ledger with transaction UUIDs
 - ✅ SQLite database with full portability
 - ✅ Flask REST API
-- ✅ React + Tailwind CSS frontend
+- ✅ React + Tailwind CSS frontend (Perfect Books, Digital Harvest, Artifact Live)
 
 ---
 
